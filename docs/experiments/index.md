@@ -98,3 +98,11 @@ uv run python scripts/evaluate.py --checkpoint outputs/.../checkpoints/best.ckpt
 - [Single-view](single_view.md)
 - [Fixed Ring-4 MVCNN](fixed_ring4.md)
 - [Learned Circular-4 MVTN](mvtn_circular4.md)
+
+## 詳細解説
+
+実験の目的、データ前提、手法、評価方法、結果解釈を詳しく確認したい場合は、次の詳細版を参照してください。
+
+- [Single-view 詳細解説](single_view_details.md)
+- [Fixed Ring-4 MVCNN 詳細解説](fixed_ring4_details.md)
+- [Learned Circular-4 MVTN 詳細解説](mvtn_circular4_details.md)
