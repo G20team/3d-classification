@@ -10,7 +10,7 @@ runs/
 data/
 dataset/
 illustrations/
-models/
+/models/
 
 *.pt
 *.pth
