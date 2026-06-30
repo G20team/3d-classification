@@ -1,0 +1,42 @@
+experiment:
+  condition_id: mvtn_circular4
+  condition_name: Learned Circular-4 MVTN
+  seed: 0
+
+data:
+  manifest_path: data/manifests/selected_regular.jsonl
+  mesh_cache_root: data/mesh_cache
+  splits_path: data/manifests/pose_splits.json
+  image_size: 224
+  num_workers: 0
+
+model:
+  experiment_kind: mvtn_circular4
+  backbone: resnet18
+  pretrained: true
+  feature_dim: 512
+  dropout: 0.3
+  num_views: 4
+  mvtn:
+    num_views: 4
+    max_azimuth_offset_deg: 45.0
+    max_elevation_offset_deg: 25.0
+    point_samples: 512
+    hidden_dim: 128
+    collapse_threshold_deg: 5.0
+
+rendering:
+  image_size: 224
+  camera_distance: 2.7
+  background_color: [0.5, 0.5, 0.5]
+  mesh_color: [1.0, 1.0, 1.0]
+
+training:
+  batch_size: 4
+  epochs: 30
+  learning_rate: 0.0001
+  weight_decay: 0.01
+  device: auto
+
+output:
+  runs_root: outputs

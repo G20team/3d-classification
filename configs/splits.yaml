@@ -1,0 +1,13 @@
+output_path: data/manifests/pose_splits.json
+
+train:
+  yaw_offsets: [-20, 0, 20]
+  elevation_offsets: [-10, 0, 10]
+
+validation:
+  yaw_offsets: [-30, 30]
+  elevation_offsets: [-15, 15]
+
+test:
+  yaw_offsets: [-45, 45]
+  elevation_offsets: [-25, 25]

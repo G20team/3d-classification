@@ -2,16 +2,20 @@
 name = "pokemon-3d-classification"
 version = "0.1.0"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10,<3.11"
 dependencies = [
     "DracoPy>=1.4",
+    "iopath>=0.1.10",
     "matplotlib>=3.9",
     "numpy>=2.0",
     "pillow>=10.0",
     "pyyaml>=6.0",
+    "requests>=2.32",
+    "scikit-learn>=1.5",
     "tensorboard>=2.17",
-    "torch>=2.4",
-    "torchvision>=0.19",
+    "torch==2.4.1",
+    "torchvision==0.19.1",
+    "trimesh>=4.4",
     "tqdm>=4.66",
 ]
 
@@ -29,11 +33,12 @@ default-groups = "all"
 [tool.ruff]
 exclude = [
     ".venv",
+    ".uv-cache",
     ".ruff_cache",
 ]
 line-length = 120
 indent-width = 4
-target-version = "py312"
+target-version = "py310"
 extend-include = ["*.ipynb"]
 
 [tool.ruff.lint]
@@ -46,7 +51,7 @@ known-first-party = ["pokemon_3d_cls"]
 
 [tool.pyright]
 typeCheckingMode = "basic"
-pythonVersion = "3.12"
+pythonVersion = "3.10"
 venvPath = "."
 venv = ".venv"
 extraPaths = ["src"]

@@ -8,8 +8,10 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.optim.adamw import AdamW
+from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard.writer import SummaryWriter
 
 from pokemon_3d_cls.config import TrainRunConfig
 from pokemon_3d_cls.data import MultiViewDataset, make_holdout_indices
@@ -104,7 +106,7 @@ def train_config(config: TrainRunConfig, project_root: Path) -> Path:
     ).to(device)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.AdamW(
+    optimizer = AdamW(
         model.parameters(),
         lr=config.training.learning_rate,
         weight_decay=config.training.weight_decay,
@@ -171,7 +173,7 @@ def _train_one_epoch(
     model: MVCNN,
     loader: DataLoader,
     criterion: nn.Module,
-    optimizer: torch.optim.Optimizer,
+    optimizer: Optimizer,
     device: torch.device,
     dataset_size: int,
 ) -> float:

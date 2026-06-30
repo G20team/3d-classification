@@ -12,6 +12,7 @@ BackboneName = Literal["resnet18", "simple_cnn"]
 ViewpointMode = Literal["quiz", "turntable", "sphere"]
 UpAxis = Literal["y", "z"]
 LabelMode = Literal["stem", "species"]
+ExperimentKind = Literal["single_view", "fixed_ring4", "mvtn_circular4"]
 
 
 @dataclass(frozen=True)
@@ -133,6 +134,112 @@ class GenerationConfig:
         return cast("dict[str, object]", asdict(self))
 
 
+@dataclass(frozen=True)
+class PoseSplitValues:
+    """姿勢splitのyaw/elevation条件。"""
+
+    yaw_offsets: tuple[float, ...]
+    elevation_offsets: tuple[float, ...]
+
+
+@dataclass(frozen=True)
+class SplitConfig:
+    """closed-set cross-orientation用の姿勢split設定。"""
+
+    output_path: str = "data/manifests/pose_splits.json"
+    train: PoseSplitValues = field(
+        default_factory=lambda: PoseSplitValues(
+            yaw_offsets=(-20.0, 0.0, 20.0),
+            elevation_offsets=(-10.0, 0.0, 10.0),
+        )
+    )
+    validation: PoseSplitValues = field(
+        default_factory=lambda: PoseSplitValues(
+            yaw_offsets=(-30.0, 30.0),
+            elevation_offsets=(-15.0, 15.0),
+        )
+    )
+    test: PoseSplitValues = field(
+        default_factory=lambda: PoseSplitValues(
+            yaw_offsets=(-45.0, 45.0),
+            elevation_offsets=(-25.0, 25.0),
+        )
+    )
+
+    def to_dict(self) -> dict[str, object]:
+        """JSON/YAML保存用に辞書化する。"""
+
+        return cast("dict[str, object]", asdict(self))
+
+
+@dataclass(frozen=True)
+class MeshDataConfig:
+    """mesh cacheを使う実験データ設定。"""
+
+    manifest_path: str = "data/manifests/selected_regular.jsonl"
+    mesh_cache_root: str = "data/mesh_cache"
+    splits_path: str = "data/manifests/pose_splits.json"
+    train_split: str = "train"
+    validation_split: str = "validation"
+    test_split: str = "test"
+    image_size: int = 224
+    num_workers: int = 0
+    class_limit: int | None = None
+
+
+@dataclass(frozen=True)
+class MVTNConfig:
+    """learned_circular相当のMVTN設定。"""
+
+    enabled: bool = False
+    num_views: int = 4
+    max_azimuth_offset_deg: float = 45.0
+    max_elevation_offset_deg: float = 25.0
+    point_samples: int = 512
+    hidden_dim: int = 128
+    collapse_threshold_deg: float = 5.0
+
+
+@dataclass(frozen=True)
+class RenderConfig:
+    """PyTorch3Dレンダリング設定。"""
+
+    image_size: int = 224
+    camera_distance: float = 2.7
+    background_color: tuple[float, float, float] = (0.5, 0.5, 0.5)
+    mesh_color: tuple[float, float, float] = (1.0, 1.0, 1.0)
+
+
+@dataclass(frozen=True)
+class MeshExperimentModelConfig:
+    """mesh render分類実験のモデル設定。"""
+
+    experiment_kind: ExperimentKind = "single_view"
+    backbone: BackboneName = "resnet18"
+    pretrained: bool = True
+    feature_dim: int = 512
+    dropout: float = 0.3
+    num_views: int = 1
+    mvtn: MVTNConfig = field(default_factory=MVTNConfig)
+
+
+@dataclass(frozen=True)
+class MeshExperimentConfig:
+    """Single/Fixed Ring-4/MVTN共通の実験設定。"""
+
+    experiment: ExperimentConfig = field(default_factory=ExperimentConfig)
+    data: MeshDataConfig = field(default_factory=MeshDataConfig)
+    model: MeshExperimentModelConfig = field(default_factory=MeshExperimentModelConfig)
+    rendering: RenderConfig = field(default_factory=RenderConfig)
+    training: TrainingConfig = field(default_factory=TrainingConfig)
+    output: OutputConfig = field(default_factory=lambda: OutputConfig(runs_root="outputs"))
+
+    def to_dict(self) -> dict[str, object]:
+        """メタデータ保存用に辞書化する。"""
+
+        return cast("dict[str, object]", asdict(self))
+
+
 def load_training_config(path: str | Path) -> TrainRunConfig:
     """学習用YAML設定を読み込む。"""
 
@@ -143,6 +250,18 @@ def load_generation_config(path: str | Path) -> GenerationConfig:
     """シルエット生成用YAML設定を読み込む。"""
 
     return parse_generation_config(read_yaml_mapping(path))
+
+
+def load_split_config(path: str | Path) -> SplitConfig:
+    """姿勢split用YAML設定を読み込む。"""
+
+    return parse_split_config(read_yaml_mapping(path))
+
+
+def load_mesh_experiment_config(path: str | Path) -> MeshExperimentConfig:
+    """mesh render分類実験用YAML設定を読み込む。"""
+
+    return parse_mesh_experiment_config(read_yaml_mapping(path))
 
 
 def parse_training_config(raw: Mapping[str, object]) -> TrainRunConfig:
@@ -218,6 +337,85 @@ def parse_generation_config(raw: Mapping[str, object]) -> GenerationConfig:
     )
 
 
+def parse_split_config(raw: Mapping[str, object]) -> SplitConfig:
+    """mappingから姿勢split設定を構築する。"""
+
+    train = _mapping(raw.get("train", {}), "train")
+    validation = _mapping(raw.get("validation", {}), "validation")
+    test = _mapping(raw.get("test", {}), "test")
+    return SplitConfig(
+        output_path=_str(raw, "output_path", "data/manifests/pose_splits.json"),
+        train=_pose_split(train, default_yaw=(-20.0, 0.0, 20.0), default_elevation=(-10.0, 0.0, 10.0)),
+        validation=_pose_split(validation, default_yaw=(-30.0, 30.0), default_elevation=(-15.0, 15.0)),
+        test=_pose_split(test, default_yaw=(-45.0, 45.0), default_elevation=(-25.0, 25.0)),
+    )
+
+
+def parse_mesh_experiment_config(raw: Mapping[str, object]) -> MeshExperimentConfig:
+    """mappingからSingle/Fixed Ring-4/MVTN実験設定を構築する。"""
+
+    experiment = _mapping(raw.get("experiment", {}), "experiment")
+    data = _mapping(raw.get("data", {}), "data")
+    model = _mapping(raw.get("model", {}), "model")
+    mvtn = _mapping(model.get("mvtn", {}), "model.mvtn")
+    rendering = _mapping(raw.get("rendering", {}), "rendering")
+    training = _mapping(raw.get("training", {}), "training")
+    output = _mapping(raw.get("output", {}), "output")
+    kind = _experiment_kind(model, "experiment_kind", "single_view")
+    default_views = 1 if kind == "single_view" else 4
+
+    return MeshExperimentConfig(
+        experiment=ExperimentConfig(
+            condition_id=_str(experiment, "condition_id", kind),
+            condition_name=_str(experiment, "condition_name", kind),
+            seed=_int(experiment, "seed", 0),
+            run_id=_optional_str(experiment, "run_id"),
+        ),
+        data=MeshDataConfig(
+            manifest_path=_str(data, "manifest_path", "data/manifests/selected_regular.jsonl"),
+            mesh_cache_root=_str(data, "mesh_cache_root", "data/mesh_cache"),
+            splits_path=_str(data, "splits_path", "data/manifests/pose_splits.json"),
+            train_split=_str(data, "train_split", "train"),
+            validation_split=_str(data, "validation_split", "validation"),
+            test_split=_str(data, "test_split", "test"),
+            image_size=_positive_int(data, "image_size", 224),
+            num_workers=_non_negative_int(data, "num_workers", 0),
+            class_limit=_optional_positive_int(data, "class_limit"),
+        ),
+        model=MeshExperimentModelConfig(
+            experiment_kind=kind,
+            backbone=_backbone(model, "backbone", "resnet18"),
+            pretrained=_bool(model, "pretrained", True),
+            feature_dim=_positive_int(model, "feature_dim", 512),
+            dropout=_bounded_float(model, "dropout", 0.3, min_value=0.0, max_value=1.0),
+            num_views=_positive_int(model, "num_views", default_views),
+            mvtn=MVTNConfig(
+                enabled=(kind == "mvtn_circular4"),
+                num_views=_positive_int(mvtn, "num_views", 4),
+                max_azimuth_offset_deg=_positive_float(mvtn, "max_azimuth_offset_deg", 45.0),
+                max_elevation_offset_deg=_positive_float(mvtn, "max_elevation_offset_deg", 25.0),
+                point_samples=_positive_int(mvtn, "point_samples", 512),
+                hidden_dim=_positive_int(mvtn, "hidden_dim", 128),
+                collapse_threshold_deg=_positive_float(mvtn, "collapse_threshold_deg", 5.0),
+            ),
+        ),
+        rendering=RenderConfig(
+            image_size=_positive_int(rendering, "image_size", 224),
+            camera_distance=_positive_float(rendering, "camera_distance", 2.7),
+            background_color=_float_tuple3(rendering, "background_color", (0.5, 0.5, 0.5)),
+            mesh_color=_float_tuple3(rendering, "mesh_color", (1.0, 1.0, 1.0)),
+        ),
+        training=TrainingConfig(
+            batch_size=_positive_int(training, "batch_size", 4),
+            epochs=_positive_int(training, "epochs", 30),
+            learning_rate=_positive_float(training, "learning_rate", 1e-4),
+            weight_decay=_non_negative_float(training, "weight_decay", 0.0),
+            device=_str(training, "device", "auto"),
+        ),
+        output=OutputConfig(runs_root=_str(output, "runs_root", "outputs")),
+    )
+
+
 def _mapping(value: object, name: str) -> Mapping[str, object]:
     if not isinstance(value, Mapping):
         msg = f"{name} はmappingである必要があります。"
@@ -267,6 +465,16 @@ def _non_negative_int(mapping: Mapping[str, object], key: str, default: int) -> 
     return value
 
 
+def _optional_positive_int(mapping: Mapping[str, object], key: str) -> int | None:
+    value = mapping.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        msg = f"{key} はnullまたは1以上の整数である必要があります。"
+        raise ValueError(msg)
+    return value
+
+
 def _float(mapping: Mapping[str, object], key: str, default: float) -> float:
     value = mapping.get(key, default)
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -306,6 +514,46 @@ def _bounded_float(
     return value
 
 
+def _float_sequence(mapping: Mapping[str, object], key: str, default: tuple[float, ...]) -> tuple[float, ...]:
+    value = mapping.get(key, default)
+    if not isinstance(value, list | tuple) or isinstance(value, str):
+        msg = f"{key} は数値listである必要があります。"
+        raise ValueError(msg)
+    floats: list[float] = []
+    for item in value:
+        if isinstance(item, bool) or not isinstance(item, int | float):
+            msg = f"{key} は数値listである必要があります。"
+            raise ValueError(msg)
+        floats.append(float(item))
+    if not floats:
+        msg = f"{key} は空にできません。"
+        raise ValueError(msg)
+    return tuple(floats)
+
+
+def _float_tuple(
+    mapping: Mapping[str, object],
+    key: str,
+    default: tuple[float, ...],
+    *,
+    length: int,
+) -> tuple[float, ...]:
+    values = _float_sequence(mapping, key, default)
+    if len(values) != length:
+        msg = f"{key} は長さ {length} の数値listである必要があります。"
+        raise ValueError(msg)
+    return values
+
+
+def _float_tuple3(
+    mapping: Mapping[str, object],
+    key: str,
+    default: tuple[float, float, float],
+) -> tuple[float, float, float]:
+    values = _float_tuple(mapping, key, default, length=3)
+    return (values[0], values[1], values[2])
+
+
 def _bool(mapping: Mapping[str, object], key: str, default: bool) -> bool:
     value = mapping.get(key, default)
     if not isinstance(value, bool):
@@ -314,11 +562,31 @@ def _bool(mapping: Mapping[str, object], key: str, default: bool) -> bool:
     return value
 
 
+def _pose_split(
+    mapping: Mapping[str, object],
+    *,
+    default_yaw: tuple[float, ...],
+    default_elevation: tuple[float, ...],
+) -> PoseSplitValues:
+    return PoseSplitValues(
+        yaw_offsets=_float_sequence(mapping, "yaw_offsets", default_yaw),
+        elevation_offsets=_float_sequence(mapping, "elevation_offsets", default_elevation),
+    )
+
+
 def _backbone(mapping: Mapping[str, object], key: str, default: BackboneName) -> BackboneName:
     value = _str(mapping, key, default)
     if value in ("resnet18", "simple_cnn"):
         return cast("BackboneName", value)
     msg = f"{key} は resnet18 / simple_cnn のいずれかである必要があります。"
+    raise ValueError(msg)
+
+
+def _experiment_kind(mapping: Mapping[str, object], key: str, default: ExperimentKind) -> ExperimentKind:
+    value = _str(mapping, key, default)
+    if value in ("single_view", "fixed_ring4", "mvtn_circular4"):
+        return cast("ExperimentKind", value)
+    msg = f"{key} は single_view / fixed_ring4 / mvtn_circular4 のいずれかである必要があります。"
     raise ValueError(msg)
 
 

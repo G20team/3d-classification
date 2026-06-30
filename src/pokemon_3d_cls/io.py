@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, cast
 
 from pokemon_3d_cls.paths import ensure_directory
 
@@ -49,6 +49,45 @@ def write_json(path: Path, data: Mapping[str, object]) -> None:
     with path.open("w", encoding="utf-8") as file:
         json.dump(data, file, ensure_ascii=False, indent=2, sort_keys=True)
         file.write("\n")
+
+
+def read_json(path: str | Path) -> dict[str, object]:
+    """JSONを読み込み、rootがobjectであることを検証する。"""
+
+    json_path = Path(path)
+    with json_path.open("r", encoding="utf-8") as file:
+        raw = json.load(file)
+    if not isinstance(raw, dict):
+        msg = f"JSON rootはobjectである必要があります: {json_path}"
+        raise ValueError(msg)
+    return cast("dict[str, object]", raw)
+
+
+def write_jsonl(path: Path, rows: Iterable[Mapping[str, object]]) -> None:
+    """JSONLをUTF-8で保存する。"""
+
+    ensure_directory(path.parent)
+    with path.open("w", encoding="utf-8") as file:
+        for row in rows:
+            json.dump(row, file, ensure_ascii=False, sort_keys=True)
+            file.write("\n")
+
+
+def read_jsonl(path: str | Path) -> list[dict[str, object]]:
+    """JSONLを読み込む。"""
+
+    jsonl_path = Path(path)
+    rows: list[dict[str, object]] = []
+    with jsonl_path.open("r", encoding="utf-8") as file:
+        for line_number, line in enumerate(file, start=1):
+            if not line.strip():
+                continue
+            raw = json.loads(line)
+            if not isinstance(raw, dict):
+                msg = f"JSONL rowはobjectである必要があります: {jsonl_path}:{line_number}"
+                raise ValueError(msg)
+            rows.append(cast("dict[str, object]", raw))
+    return rows
 
 
 def write_csv_rows(path: Path, fieldnames: list[str], rows: Iterable[Mapping[str, object]]) -> None:

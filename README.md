@@ -1,111 +1,163 @@
-# ポケモン3Dモデル識別実験環境
+# ポケモン3D MVTNマルチビュー個体識別実験環境
 
-`.glb` のポケモン3Dモデルからシルエット画像データセットを生成し、MVCNN
-(Multi-View CNN) で個体識別を行うための実験環境です。
+Pokemon-3D-api/assets のGLB形式3Dアセットを用い、複数視点からレンダリングした画像から
+ポケモン名を識別する実験環境です。タスクは未知ポケモン分類ではなく、既知カタログ内の
+ポケモンを未知姿勢から識別する **closed-set cross-orientation asset identification** として扱います。
 
-コードは `src/pokemon_3d_cls/` に分割し、実行入口は `scripts/` 配下の薄いCLIに
-統一しています。設定は YAML を主入口にします。
+比較する条件は以下です。
+
+- Single-view: single fixed view
+- Fixed Ring-4 MVCNN: 固定4視点 + view-wise max pooling
+- Learned Circular-4 MVTN: 学習可能な4視点 + view-wise max pooling
+
+研究上の問いは、限られた視点数で3D形状に応じたカメラ位置を学習するMVTNが、固定円環状カメラ配置より未知姿勢識別を改善できるか、です。
 
 ## セットアップ
+
+既存方針に合わせて `uv` を使います。
 
 ```bash
 uv sync
 ```
 
-開発時の基本コマンド:
+PyTorch3Dのwheel互換性に合わせ、このリポジトリはPython 3.10を前提にします。`uv` は `.python-version` を見て
+Python 3.10環境を作成します。
 
 ```bash
-uv run pytest
-uv run ruff check .
-uv run pyright
+uv python install 3.10
+uv sync
+uv run python scripts/bootstrap_env.py
 ```
 
-## データセット生成
-
-`configs/generate_silhouettes.yaml` を編集してから実行します。
+Linux版PyTorch3DはPyPI通常wheelではなく、公式の専用wheel indexまたはsource buildで導入します。
+`uv sync` 完了後、利用環境のCUDA/PyTorchに合わせて以下のように追加してください。
 
 ```bash
-uv run python scripts/generate_silhouettes.py --config configs/generate_silhouettes.yaml
+uv run python -m pip install --no-index --no-cache-dir pytorch3d \
+  -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/<py_cuda_torch>/download.html
 ```
 
-主な設定:
+`<py_cuda_torch>` は例として `py310_cu121_pyt241` のような形式です。導入後に
+`uv run python scripts/bootstrap_env.py` でforward renderingとcamera gradientを確認します。
 
-- `input.path`: `.glb` ファイル、または `.glb` を含むディレクトリ
-- `output.dataset_root`: 生成画像の出力先
-- `rendering.views`: 1モデルあたりの生成枚数
-- `rendering.mode`: `quiz` / `turntable` / `sphere`
-- `labels.mode`: `stem` / `species`
+診断結果は `outputs/environment_report.json` に保存されます。
 
-出力例:
+## 実験の流れ
+
+共有用の短い手順は [docs/experiment_workflow.md](docs/experiment_workflow.md) を参照してください。
+
+### 1. アセット取得
+
+```bash
+uv run python scripts/fetch_assets.py --output data/raw_assets
+```
+
+### 2. アセット監査
+
+```bash
+uv run python scripts/audit_assets.py \
+  --asset-root data/raw_assets \
+  --output data/manifests/asset_audit.jsonl
+```
+
+監査では `*.glb` を再帰探索し、読み込み失敗、空mesh、NaN/Inf、面なしmesh、通常形以外、ID不明、重複IDを除外理由付きで記録します。採用クラスは `data/manifests/selected_regular.jsonl` に保存されます。
+
+### 3. 可視確認
+
+```bash
+uv run python scripts/render_contact_sheet.py \
+  --manifest data/manifests/selected_regular.jsonl \
+  --output outputs/asset_audit_contact_sheet.png \
+  --num-samples 50
+```
+
+### 4. mesh cacheと姿勢split
+
+```bash
+uv run python scripts/prepare_mesh_cache.py \
+  --manifest data/manifests/selected_regular.jsonl \
+  --output-root data/mesh_cache
+
+uv run python scripts/build_splits.py --config configs/splits.yaml
+uv run python scripts/validate_splits.py --config configs/splits.yaml
+```
+
+split単位はポケモンIDではなく姿勢条件です。ポケモンIDはtrain/validation/testのすべてに含まれます。
+
+### 5. debug subset
+
+```bash
+uv run python scripts/train.py --config configs/debug_single_view.yaml
+uv run python scripts/train.py --config configs/debug_fixed_ring4.yaml
+uv run python scripts/train.py --config configs/debug_mvtn_circular4.yaml
+```
+
+### 6. 本実験
+
+```bash
+uv run python scripts/train.py --config configs/single_view.yaml
+uv run python scripts/train.py --config configs/fixed_ring4.yaml
+uv run python scripts/train.py --config configs/mvtn_circular4.yaml
+```
+
+評価:
+
+```bash
+uv run python scripts/evaluate.py --checkpoint outputs/.../checkpoints/best.ckpt --split test
+```
+
+## 出力
+
+各runは以下のように保存されます。
 
 ```text
-data/dataset/
-├── 128-1/
-│   ├── 128-1_000.png
-│   └── ...
-├── manifest.csv
-└── generation_config.yaml
-```
-
-`DracoPy` が入っていれば、`KHR_draco_mesh_compression` で圧縮されたGLBにも対応します。
-
-## 学習
-
-`configs/train_mvcnn.yaml` を編集してから実行します。
-
-```bash
-uv run python scripts/train.py --config configs/train_mvcnn.yaml
-```
-
-既定では以下の設定です。
-
-- backbone: `resnet18`
-- pretrained: `true`
-- image size: `224`
-- views: `24`
-- holdout stride: `4`
-- output root: `outputs/runs`
-
-学習結果は以下に保存されます。
-
-```text
-outputs/runs/<condition_id>/<run_id>/
+outputs/<experiment>/<timestamp>_seed<seed>/
 ├── config.yaml
-├── label_map.json
+├── environment_report.json
+├── metadata.json
 ├── metrics.json
-├── confusion_matrix.pt
+├── per_class_metrics.csv
+├── confusion_matrix.png
 ├── checkpoints/
-│   └── best_model.pt
-└── tensorboard/
-```
-
-TensorBoard:
-
-```bash
-uv run tensorboard --logdir outputs/runs
+│   └── best.ckpt
+├── logs/
+├── rendered_examples/
+├── camera_positions.json
+└── learned_camera_visualization.png
 ```
 
 ## 構成
 
 ```text
-configs/                  YAML設定例
+configs/                  実験YAML
+docs/                     共有用手順
 scripts/                  実行CLI
 src/pokemon_3d_cls/
-├── config.py             設定読み込みと型検証
-├── data.py               Datasetとtransform
-├── evaluation.py         精度・混同行列
-├── generation.py         シルエット生成パイプライン
-├── io.py                 JSON/YAML/CSV入出力
-├── models.py             MVCNNとbackbone
+├── assets/               アセット監査とPokeAPI cache
+├── experiments/          mesh render実験のDataset/学習/metrics
+├── mesh/                 mesh正規化とcache
+├── models/               encoder/MVCNN/MVTN/camera
+├── rendering/            GLB補助とPyTorch3D renderer
+├── config.py             設定読み込み
+├── environment.py        環境診断
+├── io.py                 JSON/YAML/CSV/JSONL
 ├── paths.py              project root基準のpath管理
-├── training.py           学習パイプライン
-└── rendering/glb.py      GLB解析とレンダリング
-tests/                    単体・スモークテスト
+└── splits.py             姿勢split
 ```
 
-## 注意
+## 制約
 
-- 実データ、生成済みdataset、学習出力は `.gitignore` 対象です。
-- 旧トップレベルの `train.py` / `glb_silhouette_dataset.py` は正式入口から外し、
-  `scripts/` 配下のCLIへ移行しました。
-- ResNet18の事前学習重みを使う場合、初回実行時に `torchvision` が重みを取得することがあります。
+- アセット、mesh cache、render cache、学習出力はGit管理しません。
+- ViewFormer、View-GCN、点群直接入力、retrieval、open-set、8視点以上比較は今回の実装対象外です。
+- MVTNとFixed Ring-4ではencoder、classifier、視点数、画像解像度、最適化条件を揃え、差分を原則として視点配置だけにします。
+- 実装上の判断と制約は [IMPLEMENTATION_NOTES.md](IMPLEMENTATION_NOTES.md) に記録しています。
+
+## 参考
+
+- Pokémon 3D assets: https://github.com/Pokemon-3D-api/assets
+- MVCNN: https://arxiv.org/abs/1505.00880
+- MVCNN PyTorch reference: https://github.com/RBirkeland/MVCNN-PyTorch
+- MVTN: https://openaccess.thecvf.com/content/ICCV2021/html/Hamdi_MVTN_Multi-View_Transformation_Network_for_3D_Shape_Recognition_ICCV_2021_paper.html
+- MVTN official code: https://github.com/ajhamdi/MVTN
+- PyTorch3D: https://github.com/facebookresearch/pytorch3d
+- PokeAPI: https://pokeapi.co/docs/v2

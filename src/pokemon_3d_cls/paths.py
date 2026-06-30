@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -45,5 +45,5 @@ def sanitize_slug(value: str) -> str:
 def make_run_id(condition_id: str, seed: int, now: datetime | None = None) -> str:
     """条件ID、seed、UTC時刻からrun_idを作る。"""
 
-    timestamp = (now or datetime.now(UTC)).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = (now or datetime.now(timezone.utc)).strftime("%Y%m%dT%H%M%SZ")
     return sanitize_slug(f"{condition_id}_seed{seed}_{timestamp}")
