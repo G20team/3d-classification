@@ -1,0 +1,57 @@
+[project]
+name = "pokemon-3d-classification"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "DracoPy>=1.4",
+    "matplotlib>=3.9",
+    "numpy>=2.0",
+    "pillow>=10.0",
+    "pyyaml>=6.0",
+    "tensorboard>=2.17",
+    "torch>=2.4",
+    "torchvision>=0.19",
+    "tqdm>=4.66",
+]
+
+[dependency-groups]
+dev = [
+    "pyright[nodejs]>=1.1",
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[tool.uv]
+package = false
+default-groups = "all"
+
+[tool.ruff]
+exclude = [
+    ".venv",
+    ".ruff_cache",
+]
+line-length = 120
+indent-width = 4
+target-version = "py312"
+extend-include = ["*.ipynb"]
+
+[tool.ruff.lint]
+select = ["F", "B", "I", "E", "W"]
+ignore = ["E402"]
+fixable = ["ALL"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pokemon_3d_cls"]
+
+[tool.pyright]
+typeCheckingMode = "basic"
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
+extraPaths = ["src"]
+reportMissingTypeStubs = false
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

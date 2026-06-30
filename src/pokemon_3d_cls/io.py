@@ -1,0 +1,62 @@
+"""JSON/YAML/CSV入出力。"""
+
+from __future__ import annotations
+
+import csv
+import json
+from pathlib import Path
+from typing import Iterable, Mapping
+
+from pokemon_3d_cls.paths import ensure_directory
+
+
+def read_yaml_mapping(path: str | Path) -> dict[str, object]:
+    """YAMLを読み込み、rootがmappingであることを検証する。"""
+
+    try:
+        import yaml
+    except ModuleNotFoundError as exc:
+        msg = "PyYAML が必要です。`uv sync` 後に再実行してください。"
+        raise RuntimeError(msg) from exc
+
+    yaml_path = Path(path)
+    with yaml_path.open("r", encoding="utf-8") as file:
+        raw = yaml.safe_load(file) or {}
+    if not isinstance(raw, dict):
+        msg = f"YAML rootはmappingである必要があります: {yaml_path}"
+        raise ValueError(msg)
+    return raw
+
+
+def write_yaml(path: Path, data: Mapping[str, object]) -> None:
+    """YAMLをUTF-8で保存する。"""
+
+    try:
+        import yaml
+    except ModuleNotFoundError as exc:
+        msg = "PyYAML が必要です。`uv sync` 後に再実行してください。"
+        raise RuntimeError(msg) from exc
+
+    ensure_directory(path.parent)
+    with path.open("w", encoding="utf-8") as file:
+        yaml.safe_dump(data, file, allow_unicode=True, sort_keys=False)
+
+
+def write_json(path: Path, data: Mapping[str, object]) -> None:
+    """JSONをUTF-8で保存する。"""
+
+    ensure_directory(path.parent)
+    with path.open("w", encoding="utf-8") as file:
+        json.dump(data, file, ensure_ascii=False, indent=2, sort_keys=True)
+        file.write("\n")
+
+
+def write_csv_rows(path: Path, fieldnames: list[str], rows: Iterable[Mapping[str, object]]) -> None:
+    """CSVをUTF-8で保存する。"""
+
+    ensure_directory(path.parent)
+    with path.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)

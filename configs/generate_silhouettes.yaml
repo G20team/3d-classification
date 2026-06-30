@@ -1,0 +1,21 @@
+seed: 0
+
+input:
+  path: data/models
+
+output:
+  dataset_root: data/dataset
+  manifest_name: manifest.csv
+
+rendering:
+  views: 24
+  mode: quiz
+  resolution: 224
+  supersample: 2
+  invert: false
+  pad: 1.25
+  up: y
+  base_azimuth: 0.0
+
+labels:
+  mode: stem
