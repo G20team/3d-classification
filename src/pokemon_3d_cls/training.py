@@ -12,6 +12,7 @@ from torch.optim.adamw import AdamW
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard.writer import SummaryWriter
+from tqdm import tqdm
 
 from pokemon_3d_cls.config import TrainRunConfig
 from pokemon_3d_cls.data import MultiViewDataset, make_holdout_indices
@@ -117,8 +118,11 @@ def train_config(config: TrainRunConfig, project_root: Path) -> Path:
 
     epoch_rows: list[dict[str, float]] = []
     best_accuracy = -1.0
+    print(f"training started: {run_dir}")
+    print(f"device={device}, train={len(train_dataset)}, holdout={len(test_dataset)}, epochs={config.training.epochs}")
     try:
-        for epoch in range(1, config.training.epochs + 1):
+        epoch_progress = tqdm(range(1, config.training.epochs + 1), desc="epochs", unit="epoch")
+        for epoch in epoch_progress:
             train_loss = _train_one_epoch(
                 model=model,
                 loader=train_loader,
@@ -126,8 +130,15 @@ def train_config(config: TrainRunConfig, project_root: Path) -> Path:
                 optimizer=optimizer,
                 device=device,
                 dataset_size=len(train_dataset),
+                progress_desc=f"train {epoch}/{config.training.epochs}",
             )
-            evaluation = evaluate_model(model, test_loader, device=device, num_classes=model.num_classes)
+            evaluation = evaluate_model(
+                model,
+                test_loader,
+                device=device,
+                num_classes=model.num_classes,
+                progress_desc=f"holdout {epoch}/{config.training.epochs}",
+            )
             row = {
                 "epoch": float(epoch),
                 "train_loss": train_loss,
@@ -140,12 +151,20 @@ def train_config(config: TrainRunConfig, project_root: Path) -> Path:
             if evaluation.accuracy >= best_accuracy:
                 best_accuracy = evaluation.accuracy
                 torch.save(model.state_dict(), best_model_path)
+            epoch_progress.set_postfix(loss=f"{train_loss:.4f}", acc=f"{evaluation.accuracy:.4f}")
+            tqdm.write(f"epoch {epoch}: train_loss={train_loss:.4f}, holdout_accuracy={evaluation.accuracy:.4f}")
     finally:
         writer.close()
 
     state_dict = torch.load(best_model_path, map_location=device, weights_only=True)
     model.load_state_dict(state_dict)
-    final_evaluation = evaluate_model(model, test_loader, device=device, num_classes=model.num_classes)
+    final_evaluation = evaluate_model(
+        model,
+        test_loader,
+        device=device,
+        num_classes=model.num_classes,
+        progress_desc="final holdout",
+    )
     torch.save(final_evaluation.confusion_matrix.cpu(), run_dir / "confusion_matrix.pt")
 
     write_json(
@@ -176,10 +195,12 @@ def _train_one_epoch(
     optimizer: Optimizer,
     device: torch.device,
     dataset_size: int,
+    progress_desc: str | None = None,
 ) -> float:
     model.train()
     running_loss = 0.0
-    for views, labels in loader:
+    batches = tqdm(loader, desc=progress_desc, unit="batch", leave=False) if progress_desc else loader
+    for views, labels in batches:
         views = views.to(device)
         labels = labels.to(device)
 

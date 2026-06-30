@@ -6,6 +6,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 import torch
+from tqdm import tqdm
 
 from pokemon_3d_cls.models import MVCNN
 
@@ -32,6 +33,7 @@ def evaluate_model(
     *,
     device: torch.device,
     num_classes: int,
+    progress_desc: str | None = None,
 ) -> EvaluationResult:
     """Top-1精度と混同行列を計算する。"""
 
@@ -39,9 +41,10 @@ def evaluate_model(
     correct = 0
     total = 0
     confusion = torch.zeros(num_classes, num_classes, dtype=torch.long)
+    batches = tqdm(loader, desc=progress_desc, unit="batch", leave=False) if progress_desc else loader
 
     with torch.no_grad():
-        for views, labels in loader:
+        for views, labels in batches:
             views = views.to(device)
             labels = labels.to(device)
             logits = model(views)

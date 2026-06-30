@@ -31,10 +31,16 @@ def main() -> None:
     rng = random.Random(args.seed)
     sample_rows = rng.sample(rows, min(args.num_samples, len(rows)))
     tiles: list[Image.Image] = []
+    skipped: list[str] = []
     azimuths = np.linspace(0, 360, num=args.views, endpoint=False)
     for row in sample_rows:
-        mesh = load_trimesh_mesh(Path(str(row["asset_path"])))
-        normalized = normalize_trimesh(mesh)
+        asset_path = Path(str(row["asset_path"]))
+        try:
+            mesh = load_trimesh_mesh(asset_path)
+            normalized = normalize_trimesh(mesh)
+        except Exception as exc:
+            skipped.append(f"{asset_path}: {exc}")
+            continue
         view_images = []
         vertices = normalized.vertices.numpy()
         faces = normalized.faces.numpy()
@@ -42,11 +48,18 @@ def main() -> None:
             image = render_silhouette(vertices, faces, float(azimuth), 0.0, resolution=args.image_size)
             view_images.append(Image.fromarray(image).convert("RGB"))
         tiles.append(_hstack(view_images))
+    if not tiles:
+        msg = "contact sheetに描画できるアセットがありません。監査manifestを確認してください。"
+        raise ValueError(msg)
     sheet = _grid(tiles, columns=5)
     output_path = resolve_project_path(args.output, project_root)
     ensure_directory(output_path.parent)
     sheet.save(output_path)
     print(f"contact sheet saved: {output_path}")
+    if skipped:
+        print(f"skipped assets: {len(skipped)}")
+        for item in skipped[:10]:
+            print(f"  - {item}")
 
 
 def _hstack(images: list[Image.Image]) -> Image.Image:

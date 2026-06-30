@@ -18,6 +18,7 @@ class RendererSettings:
     camera_distance: float = 2.7
     background_color: tuple[float, float, float] = (0.5, 0.5, 0.5)
     mesh_color: tuple[float, float, float] = (1.0, 1.0, 1.0)
+    raster_bin_size: int = 0
 
 
 def is_pytorch3d_available() -> bool:
@@ -82,6 +83,7 @@ class PyTorch3DRenderer:
             image_size=self.settings.image_size,
             blur_radius=0.0,
             faces_per_pixel=1,
+            bin_size=self.settings.raster_bin_size,
         )
         lights = PointLights(device=self.device, location=[[0.0, 0.0, 3.0]])
         shader = SoftPhongShader(

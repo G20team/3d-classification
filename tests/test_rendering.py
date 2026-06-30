@@ -3,6 +3,13 @@ from __future__ import annotations
 import numpy as np
 
 from pokemon_3d_cls.rendering.glb import make_label, normalize_vertices, viewpoints
+from pokemon_3d_cls.rendering.pytorch3d_renderer import RendererSettings
+
+
+def test_renderer_settings_use_naive_rasterization_by_default() -> None:
+    settings = RendererSettings()
+
+    assert settings.raster_bin_size == 0
 
 
 def test_make_label_supports_stem_and_species() -> None:

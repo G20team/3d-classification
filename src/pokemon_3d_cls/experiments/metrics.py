@@ -21,19 +21,24 @@ def compute_classification_metrics(
     top1 = float((predictions == np.asarray(labels)).mean()) if labels else 0.0
     top_k = min(5, probabilities.shape[1])
     top5 = float(np.mean([label in np.argsort(row)[-top_k:] for label, row in zip(labels, probabilities, strict=True)]))
-    macro_f1 = float(f1_score(labels, predictions, average="macro")) if labels else 0.0
+    class_indices = list(range(len(class_names)))
+    macro_f1 = float(
+        f1_score(labels, predictions, labels=class_indices, average="macro", zero_division=0)
+    ) if labels else 0.0
     report = classification_report(
         labels,
         predictions,
+        labels=class_indices,
         target_names=class_names,
         output_dict=True,
+        zero_division=0,
     )
     return {
         "top1_accuracy": top1,
         "top5_accuracy": top5,
         "macro_f1": macro_f1,
         "per_class": report,
-        "confusion_matrix": confusion_matrix(labels, predictions).tolist(),
+        "confusion_matrix": confusion_matrix(labels, predictions, labels=class_indices).tolist(),
     }
 
 

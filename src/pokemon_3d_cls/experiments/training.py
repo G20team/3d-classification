@@ -15,6 +15,7 @@ from torch.optim.adamw import AdamW
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard.writer import SummaryWriter
+from tqdm import tqdm
 
 from pokemon_3d_cls.config import MeshExperimentConfig
 from pokemon_3d_cls.environment import collect_environment_report
@@ -78,9 +79,15 @@ def train_mesh_experiment(config: MeshExperimentConfig, project_root: Path) -> P
     checkpoint_dir = ensure_directory(run_dir / "checkpoints")
     camera_history: list[dict[str, object]] = []
     best_macro_f1 = -1.0
+    print(f"training started: {run_dir}")
+    print(
+        f"device={device}, train={len(train_dataset)}, "
+        f"validation={len(validation_dataset)}, epochs={config.training.epochs}"
+    )
 
     try:
-        for epoch in range(1, config.training.epochs + 1):
+        epoch_progress = tqdm(range(1, config.training.epochs + 1), desc="epochs", unit="epoch")
+        for epoch in epoch_progress:
             train_loss, train_camera_stats = _run_epoch(
                 model=model,
                 mvtn=mvtn,
@@ -90,6 +97,7 @@ def train_mesh_experiment(config: MeshExperimentConfig, project_root: Path) -> P
                 optimizer=optimizer,
                 config=config,
                 device=device,
+                progress_desc=f"train {epoch}/{config.training.epochs}",
             )
             validation = evaluate_loader(
                 model=model,
@@ -99,6 +107,7 @@ def train_mesh_experiment(config: MeshExperimentConfig, project_root: Path) -> P
                 config=config,
                 device=device,
                 class_names=validation_dataset.class_names,
+                progress_desc=f"validation {epoch}/{config.training.epochs}",
             )
             writer.add_scalar("loss/train", train_loss, epoch)
             validation_macro_f1 = _metric_float(validation, "macro_f1")
@@ -108,6 +117,8 @@ def train_mesh_experiment(config: MeshExperimentConfig, project_root: Path) -> P
             if validation_macro_f1 >= best_macro_f1:
                 best_macro_f1 = validation_macro_f1
                 _save_checkpoint(checkpoint_dir / "best.ckpt", model, mvtn, config, epoch, best_macro_f1)
+            epoch_progress.set_postfix(loss=f"{train_loss:.4f}", macro_f1=f"{validation_macro_f1:.4f}")
+            tqdm.write(f"epoch {epoch}: train_loss={train_loss:.4f}, validation_macro_f1={validation_macro_f1:.4f}")
     finally:
         writer.close()
 
@@ -120,6 +131,7 @@ def train_mesh_experiment(config: MeshExperimentConfig, project_root: Path) -> P
         config=config,
         device=device,
         class_names=validation_dataset.class_names,
+        progress_desc="final validation",
     )
     write_json(run_dir / "metrics.json", final_metrics)
     _write_per_class_csv(run_dir / "per_class_metrics.csv", cast("dict[str, object]", final_metrics["per_class"]))
@@ -142,6 +154,7 @@ def evaluate_loader(
     config: MeshExperimentConfig,
     device: torch.device,
     class_names: list[str],
+    progress_desc: str | None = None,
 ) -> dict[str, object]:
     """DataLoaderを評価してmetrics dictを返す。"""
 
@@ -150,8 +163,9 @@ def evaluate_loader(
         mvtn.eval()
     labels_all: list[int] = []
     probabilities_all: list[np.ndarray] = []
+    batches = tqdm(loader, desc=progress_desc, unit="batch", leave=False) if progress_desc else loader
     with torch.no_grad():
-        for batch in loader:
+        for batch in batches:
             labels = cast("torch.Tensor", batch["labels"]).to(device)
             azimuths, elevations, _stats = _camera_angles(batch, config, device, mvtn)
             images = renderer.render_batch_views(
@@ -177,6 +191,7 @@ def _run_epoch(
     optimizer: Optimizer,
     config: MeshExperimentConfig,
     device: torch.device,
+    progress_desc: str | None = None,
 ) -> tuple[float, dict[str, object] | None]:
     model.train()
     if mvtn is not None:
@@ -184,7 +199,8 @@ def _run_epoch(
     running_loss = 0.0
     seen = 0
     last_camera_stats: dict[str, object] | None = None
-    for batch in loader:
+    batches = tqdm(loader, desc=progress_desc, unit="batch", leave=False) if progress_desc else loader
+    for batch in batches:
         labels = cast("torch.Tensor", batch["labels"]).to(device)
         optimizer.zero_grad()
         azimuths, elevations, camera_stats = _camera_angles(batch, config, device, mvtn)

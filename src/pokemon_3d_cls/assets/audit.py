@@ -10,6 +10,7 @@ from typing import cast
 import numpy as np
 import trimesh
 
+from pokemon_3d_cls.assets.glb import glb_has_texture, load_draco_glb_mesh
 from pokemon_3d_cls.assets.pokeapi import load_or_fetch_pokemon_names
 from pokemon_3d_cls.io import write_json, write_jsonl
 from pokemon_3d_cls.paths import ensure_directory
@@ -98,14 +99,12 @@ def summarize_audit(records: list[AssetAuditRecord], selected: list[AssetAuditRe
 def extract_pokemon_id_from_path(path: str | Path) -> int | None:
     """ファイル名や親ディレクトリからNational Dex IDを推定する。"""
 
-    text = Path(path).as_posix()
-    candidates = re.findall(r"(?<!\d)(\d{1,4})(?!\d)", text)
-    if not candidates:
-        return None
-    for candidate in candidates:
-        value = int(candidate)
-        if 1 <= value <= 2000:
-            return value
+    for part in reversed(Path(path).parts):
+        candidates = re.findall(r"(?<!\d)(\d{1,4})(?!\d)", part)
+        for candidate in candidates:
+            value = int(candidate)
+            if 1 <= value <= 2000:
+                return value
     return None
 
 
@@ -138,6 +137,22 @@ def is_regular_candidate(path: str | Path, category: str) -> bool:
 def load_trimesh_mesh(path: Path) -> trimesh.Trimesh:
     """GLBを読み込み、scene内geometryを結合したTrimeshを返す。"""
 
+    try:
+        mesh = _load_trimesh_mesh_raw(path)
+        if _mesh_exclude_reason(np.asarray(mesh.vertices), np.asarray(mesh.faces)) is None:
+            return mesh
+    except Exception:
+        if path.suffix.lower() != ".glb":
+            raise
+
+    if path.suffix.lower() == ".glb":
+        return load_draco_glb_mesh(path)
+
+    msg = f"未対応または正規化不能なmeshです: {path}"
+    raise ValueError(msg)
+
+
+def _load_trimesh_mesh_raw(path: Path) -> trimesh.Trimesh:
     loaded = trimesh.load(path, force="scene", process=False)
     if isinstance(loaded, trimesh.Scene):
         geometries = [geometry for geometry in loaded.geometry.values() if isinstance(geometry, trimesh.Trimesh)]
@@ -153,7 +168,7 @@ def load_trimesh_mesh(path: Path) -> trimesh.Trimesh:
 
 def _audit_one(path: Path, asset_root: Path, pokemon_names: dict[int, str]) -> AssetAuditRecord:
     category = infer_category(path, asset_root)
-    pokemon_id = extract_pokemon_id_from_path(path)
+    pokemon_id = extract_pokemon_id_from_path(_asset_relative_path(path, asset_root))
     pokemon_name = pokemon_names.get(pokemon_id) if pokemon_id is not None else None
     try:
         mesh = load_trimesh_mesh(path)
@@ -174,7 +189,7 @@ def _audit_one(path: Path, asset_root: Path, pokemon_names: dict[int, str]) -> A
             pokemon_name=pokemon_name,
             num_vertices=int(len(vertices)),
             num_faces=int(len(faces)),
-            has_texture=_has_texture(mesh),
+            has_texture=_has_texture(mesh) or glb_has_texture(path),
             is_valid=exclude_reason is None,
             exclude_reason=exclude_reason,
         )
@@ -200,7 +215,28 @@ def _mesh_exclude_reason(vertices: np.ndarray, faces: np.ndarray) -> str | None:
         return "mesh_has_no_faces"
     if not np.isfinite(vertices).all():
         return "mesh_has_nan_or_inf"
+    if _non_degenerate_face_count(vertices, faces) == 0:
+        return "mesh_has_no_non_degenerate_faces"
+    min_bounds = vertices.min(axis=0)
+    max_bounds = vertices.max(axis=0)
+    center = (min_bounds + max_bounds) / 2.0
+    radius = float(np.linalg.norm(vertices - center, axis=1).max())
+    if radius <= 0:
+        return "zero_scale_mesh"
     return None
+
+
+def _asset_relative_path(path: Path, asset_root: Path) -> Path:
+    try:
+        return path.relative_to(asset_root)
+    except ValueError:
+        return path
+
+
+def _non_degenerate_face_count(vertices: np.ndarray, faces: np.ndarray) -> int:
+    tri = vertices[faces]
+    areas = np.linalg.norm(np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]), axis=1) * 0.5
+    return int((np.isfinite(areas) & (areas > 1e-12)).sum())
 
 
 def _has_texture(mesh: trimesh.Trimesh) -> bool:
