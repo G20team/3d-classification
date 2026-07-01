@@ -75,6 +75,8 @@ def main() -> None:
         ),
         device=device,
     )
+    print(f"evaluation started: checkpoint={checkpoint_path}")
+    print(f"device={device}, split={args.split}, samples={len(dataset)}, batches={len(loader)}")
     metrics = evaluate_loader(
         model=model,
         mvtn=mvtn,
@@ -83,6 +85,7 @@ def main() -> None:
         config=config,
         device=device,
         class_names=dataset.class_names,
+        progress_desc=f"evaluate {args.split}",
     )
     output_dir = Path(args.output_dir) if args.output_dir else checkpoint_path.parent.parent / f"eval_{args.split}"
     output_dir = ensure_directory(
