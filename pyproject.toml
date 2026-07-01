@@ -17,6 +17,7 @@ dependencies = [
     "torchvision==0.19.1",
     "trimesh>=4.4",
     "tqdm>=4.66",
+    "plotly>=6.8.0",
 ]
 
 [dependency-groups]

@@ -112,6 +112,18 @@ data/mesh_cache/mesh_cache_manifest.jsonl
 - `mesh_cache_manifest.jsonl` の件数が `selected_regular.jsonl` と大きくずれていない。
 - 読み込み失敗が出た場合、元GLBの監査結果と除外理由を確認する。
 
+mesh cacheを直接可視化することもできます。
+
+```bash
+uv run python scripts/inspect_mesh_cache.py \
+  data/mesh_cache/0001_bulbasaur.pt \
+  --output-root outputs/mesh_preview
+```
+
+このコマンドはcache内のtensor構造、頂点数、面数、bounding boxを表示し、確認用のPLYとHTMLを
+`outputs/mesh_preview` に保存します。`torch.load(..., weights_only=False)` を使うため、
+自分で作成した信頼できるcacheに対してのみ実行してください。
+
 ## 5. 姿勢Split作成
 
 この実験ではポケモンIDではなく、姿勢条件でtrain/validation/testを分けます。
