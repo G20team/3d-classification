@@ -26,6 +26,12 @@ def main() -> None:
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--split", default="test")
     parser.add_argument("--output-dir")
+    parser.add_argument(
+        "--batch-size",
+        type=_positive_int,
+        default=1,
+        help="評価時のbatch size。WSLのメモリ不足を避けるため既定値は1です。",
+    )
     args = parser.parse_args()
     project_root = find_project_root(Path.cwd())
     checkpoint_path = resolve_project_path(args.checkpoint, project_root)
@@ -42,7 +48,7 @@ def main() -> None:
     )
     loader = DataLoader(
         dataset,
-        batch_size=config.training.batch_size,
+        batch_size=args.batch_size,
         shuffle=False,
         num_workers=config.data.num_workers,
         collate_fn=collate_mesh_samples,
@@ -77,6 +83,7 @@ def main() -> None:
     )
     print(f"evaluation started: checkpoint={checkpoint_path}")
     print(f"device={device}, split={args.split}, samples={len(dataset)}, batches={len(loader)}")
+    print(f"eval_batch_size={args.batch_size} (training config batch_size={config.training.batch_size})")
     metrics = evaluate_loader(
         model=model,
         mvtn=mvtn,
@@ -86,6 +93,7 @@ def main() -> None:
         device=device,
         class_names=dataset.class_names,
         progress_desc=f"evaluate {args.split}",
+        cleanup_interval=1,
     )
     output_dir = Path(args.output_dir) if args.output_dir else checkpoint_path.parent.parent / f"eval_{args.split}"
     output_dir = ensure_directory(
@@ -98,6 +106,14 @@ def main() -> None:
         output_dir / "confusion_matrix.png",
     )
     print(f"evaluation finished: {output_dir}")
+
+
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        msg = "正の整数を指定してください。"
+        raise argparse.ArgumentTypeError(msg)
+    return parsed
 
 
 if __name__ == "__main__":

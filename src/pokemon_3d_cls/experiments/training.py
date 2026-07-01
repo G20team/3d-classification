@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import gc
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -155,6 +156,7 @@ def evaluate_loader(
     device: torch.device,
     class_names: list[str],
     progress_desc: str | None = None,
+    cleanup_interval: int | None = None,
 ) -> dict[str, object]:
     """DataLoaderを評価してmetrics dictを返す。"""
 
@@ -164,8 +166,8 @@ def evaluate_loader(
     labels_all: list[int] = []
     probabilities_all: list[np.ndarray] = []
     batches = tqdm(loader, desc=progress_desc, unit="batch", leave=False) if progress_desc else loader
-    with torch.no_grad():
-        for batch in batches:
+    with torch.inference_mode():
+        for batch_index, batch in enumerate(batches, start=1):
             labels = cast("torch.Tensor", batch["labels"]).to(device)
             azimuths, elevations, _stats = _camera_angles(batch, config, device, mvtn)
             images = renderer.render_batch_views(
@@ -177,6 +179,11 @@ def evaluate_loader(
             logits = model(images)
             probabilities_all.append(torch.softmax(logits, dim=1).cpu().numpy())
             labels_all.extend(int(label) for label in labels.cpu().tolist())
+            del labels, azimuths, elevations, images, logits
+            if cleanup_interval is not None and batch_index % cleanup_interval == 0:
+                gc.collect()
+                if device.type == "cuda":
+                    torch.cuda.empty_cache()
     probabilities = np.concatenate(probabilities_all, axis=0) if probabilities_all else np.zeros((0, len(class_names)))
     return compute_classification_metrics(labels=labels_all, probabilities=probabilities, class_names=class_names)
 

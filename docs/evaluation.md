@@ -13,6 +13,16 @@ uv run python scripts/evaluate.py \
   --split test
 ```
 
+評価CLIの既定batch sizeは、WSLのメモリ不足による強制終了を避けるため `1` です。
+余裕がある環境で高速化したい場合だけ、次のように明示的に増やしてください。
+
+```bash
+uv run python scripts/evaluate.py \
+  --checkpoint outputs/<condition_id>/<run_id>/checkpoints/best.ckpt \
+  --split test \
+  --batch-size 2
+```
+
 出力先を明示したい場合:
 
 ```bash
