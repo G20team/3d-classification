@@ -20,7 +20,12 @@ from tqdm import tqdm
 
 from pokemon_3d_cls.config import MeshExperimentConfig
 from pokemon_3d_cls.environment import collect_environment_report
-from pokemon_3d_cls.experiments.dataset import MeshPoseDataset, collate_mesh_samples
+from pokemon_3d_cls.experiments.dataset import (
+    MeshPoseDataset,
+    SilhouettePoseDataset,
+    collate_mesh_samples,
+    collate_silhouette_samples,
+)
 from pokemon_3d_cls.experiments.metrics import compute_classification_metrics, save_confusion_matrix_png
 from pokemon_3d_cls.io import write_json, write_yaml
 from pokemon_3d_cls.models import (
@@ -38,6 +43,9 @@ from pokemon_3d_cls.training import resolve_device, set_seed
 
 def train_mesh_experiment(config: MeshExperimentConfig, project_root: Path) -> Path:
     """設定に従ってSingle/Fixed Ring-4/MVTN実験を学習する。"""
+
+    if config.data.input_source == "silhouette_cache":
+        return train_silhouette_experiment(config, project_root)
 
     set_seed(config.experiment.seed)
     device = resolve_device(config.training.device)
@@ -146,6 +154,90 @@ def train_mesh_experiment(config: MeshExperimentConfig, project_root: Path) -> P
     return run_dir
 
 
+def train_silhouette_experiment(config: MeshExperimentConfig, project_root: Path) -> Path:
+    """render cache済み黒塗りシルエットでMVCNNを学習する。"""
+
+    set_seed(config.experiment.seed)
+    device = resolve_device(config.training.device)
+    run_dir = _prepare_run_dir(config, project_root)
+    write_yaml(run_dir / "config.yaml", config.to_dict())
+    environment_report = collect_environment_report(run_dir / "environment_report.json")
+    write_json(run_dir / "metadata.json", _metadata(config, environment_report))
+
+    train_dataset = _silhouette_dataset(config, project_root, config.data.train_split)
+    validation_dataset = _silhouette_dataset(config, project_root, config.data.validation_split)
+    train_loader = _silhouette_loader(train_dataset, config, shuffle=True)
+    validation_loader = _silhouette_loader(validation_dataset, config, shuffle=False)
+
+    model = MVCNNClassifier(
+        num_classes=len(train_dataset.class_names),
+        backbone=config.model.backbone,
+        input_channels=1,
+        feature_dim=config.model.feature_dim,
+        pretrained=config.model.pretrained,
+        dropout=config.model.dropout,
+    ).to(device)
+    optimizer = AdamW(
+        model.parameters(),
+        lr=config.training.learning_rate,
+        weight_decay=config.training.weight_decay,
+    )
+    criterion = nn.CrossEntropyLoss()
+    writer = SummaryWriter(log_dir=str(run_dir / "logs"))
+    checkpoint_dir = ensure_directory(run_dir / "checkpoints")
+    best_macro_f1 = -1.0
+    print(f"training started: {run_dir}")
+    print(
+        f"device={device}, train={len(train_dataset)}, "
+        f"validation={len(validation_dataset)}, epochs={config.training.epochs}"
+    )
+
+    try:
+        epoch_progress = tqdm(range(1, config.training.epochs + 1), desc="epochs", unit="epoch")
+        for epoch in epoch_progress:
+            train_loss = _run_silhouette_epoch(
+                model=model,
+                loader=train_loader,
+                criterion=criterion,
+                optimizer=optimizer,
+                device=device,
+                progress_desc=f"train {epoch}/{config.training.epochs}",
+            )
+            validation = evaluate_silhouette_loader(
+                model=model,
+                loader=validation_loader,
+                device=device,
+                class_names=validation_dataset.class_names,
+                progress_desc=f"validation {epoch}/{config.training.epochs}",
+            )
+            writer.add_scalar("loss/train", train_loss, epoch)
+            validation_macro_f1 = _metric_float(validation, "macro_f1")
+            writer.add_scalar("macro_f1/validation", validation_macro_f1, epoch)
+            if validation_macro_f1 >= best_macro_f1:
+                best_macro_f1 = validation_macro_f1
+                _save_checkpoint(checkpoint_dir / "best.ckpt", model, None, config, epoch, best_macro_f1)
+            epoch_progress.set_postfix(loss=f"{train_loss:.4f}", macro_f1=f"{validation_macro_f1:.4f}")
+            tqdm.write(f"epoch {epoch}: train_loss={train_loss:.4f}, validation_macro_f1={validation_macro_f1:.4f}")
+    finally:
+        writer.close()
+
+    final_metrics = evaluate_silhouette_loader(
+        model=model,
+        loader=validation_loader,
+        device=device,
+        class_names=validation_dataset.class_names,
+        progress_desc="final validation",
+    )
+    write_json(run_dir / "metrics.json", final_metrics)
+    _write_per_class_csv(run_dir / "per_class_metrics.csv", cast("dict[str, object]", final_metrics["per_class"]))
+    save_confusion_matrix_png(
+        cast("list[list[int]]", final_metrics["confusion_matrix"]),
+        validation_dataset.class_names,
+        run_dir / "confusion_matrix.png",
+    )
+    return run_dir
+
+
 def evaluate_loader(
     *,
     model: MVCNNClassifier,
@@ -188,6 +280,31 @@ def evaluate_loader(
     return compute_classification_metrics(labels=labels_all, probabilities=probabilities, class_names=class_names)
 
 
+def evaluate_silhouette_loader(
+    *,
+    model: MVCNNClassifier,
+    loader: DataLoader,
+    device: torch.device,
+    class_names: list[str],
+    progress_desc: str | None = None,
+) -> dict[str, object]:
+    """シルエットDataLoaderを評価してmetrics dictを返す。"""
+
+    model.eval()
+    labels_all: list[int] = []
+    probabilities_all: list[np.ndarray] = []
+    batches = tqdm(loader, desc=progress_desc, unit="batch", leave=False) if progress_desc else loader
+    with torch.inference_mode():
+        for batch in batches:
+            labels = cast("torch.Tensor", batch["labels"]).to(device)
+            images = cast("torch.Tensor", batch["images"]).to(device)
+            logits = model(images)
+            probabilities_all.append(torch.softmax(logits, dim=1).cpu().numpy())
+            labels_all.extend(int(label) for label in labels.cpu().tolist())
+    probabilities = np.concatenate(probabilities_all, axis=0) if probabilities_all else np.zeros((0, len(class_names)))
+    return compute_classification_metrics(labels=labels_all, probabilities=probabilities, class_names=class_names)
+
+
 def _run_epoch(
     *,
     model: MVCNNClassifier,
@@ -225,6 +342,32 @@ def _run_epoch(
         seen += int(labels.size(0))
         last_camera_stats = camera_stats
     return running_loss / max(seen, 1), last_camera_stats
+
+
+def _run_silhouette_epoch(
+    *,
+    model: MVCNNClassifier,
+    loader: DataLoader,
+    criterion: nn.Module,
+    optimizer: Optimizer,
+    device: torch.device,
+    progress_desc: str | None = None,
+) -> float:
+    model.train()
+    running_loss = 0.0
+    seen = 0
+    batches = tqdm(loader, desc=progress_desc, unit="batch", leave=False) if progress_desc else loader
+    for batch in batches:
+        labels = cast("torch.Tensor", batch["labels"]).to(device)
+        images = cast("torch.Tensor", batch["images"]).to(device)
+        optimizer.zero_grad()
+        logits = model(images)
+        loss = criterion(logits, labels)
+        loss.backward()
+        optimizer.step()
+        running_loss += float(loss.item()) * int(labels.size(0))
+        seen += int(labels.size(0))
+    return running_loss / max(seen, 1)
 
 
 def _camera_angles(
@@ -280,6 +423,20 @@ def _dataset(config: MeshExperimentConfig, project_root: Path, split: str) -> Me
     )
 
 
+def _silhouette_dataset(config: MeshExperimentConfig, project_root: Path, split: str) -> SilhouettePoseDataset:
+    render_cache_root = (
+        resolve_project_path(config.data.render_cache_root, project_root) / config.experiment.condition_id
+    )
+    return SilhouettePoseDataset(
+        manifest_path=resolve_project_path(config.data.manifest_path, project_root),
+        splits_path=resolve_project_path(config.data.splits_path, project_root),
+        split=split,
+        render_cache_root=render_cache_root,
+        num_views=config.model.num_views,
+        class_limit=config.data.class_limit,
+    )
+
+
 def _loader(dataset: MeshPoseDataset, config: MeshExperimentConfig, *, shuffle: bool) -> DataLoader:
     generator = torch.Generator().manual_seed(config.experiment.seed)
     return DataLoader(
@@ -288,6 +445,18 @@ def _loader(dataset: MeshPoseDataset, config: MeshExperimentConfig, *, shuffle: 
         shuffle=shuffle,
         num_workers=config.data.num_workers,
         collate_fn=collate_mesh_samples,
+        generator=generator if shuffle else None,
+    )
+
+
+def _silhouette_loader(dataset: SilhouettePoseDataset, config: MeshExperimentConfig, *, shuffle: bool) -> DataLoader:
+    generator = torch.Generator().manual_seed(config.experiment.seed)
+    return DataLoader(
+        dataset,
+        batch_size=config.training.batch_size,
+        shuffle=shuffle,
+        num_workers=config.data.num_workers,
+        collate_fn=collate_silhouette_samples,
         generator=generator if shuffle else None,
     )
 

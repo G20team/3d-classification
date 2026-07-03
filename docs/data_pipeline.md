@@ -117,11 +117,11 @@ mesh cacheを直接可視化することもできます。
 ```bash
 uv run python scripts/inspect_mesh_cache.py \
   data/mesh_cache/0001_bulbasaur.pt \
-  --output-root outputs/mesh_preview
+  --output-root data/mesh_preview
 ```
 
 このコマンドはcache内のtensor構造、頂点数、面数、bounding boxを表示し、確認用のPLYとHTMLを
-`outputs/mesh_preview` に保存します。`torch.load(..., weights_only=False)` を使うため、
+`data/mesh_preview` に保存します。`torch.load(..., weights_only=False)` を使うため、
 自分で作成した信頼できるcacheに対してのみ実行してください。
 
 ## 5. 姿勢Split作成

@@ -20,18 +20,32 @@ def compute_classification_metrics(
     predictions = probabilities.argmax(axis=1)
     top1 = float((predictions == np.asarray(labels)).mean()) if labels else 0.0
     top_k = min(5, probabilities.shape[1])
-    top5 = float(np.mean([label in np.argsort(row)[-top_k:] for label, row in zip(labels, probabilities, strict=True)]))
+    top5 = (
+        float(np.mean([label in np.argsort(row)[-top_k:] for label, row in zip(labels, probabilities, strict=True)]))
+        if labels
+        else 0.0
+    )
     class_indices = list(range(len(class_names)))
-    macro_f1 = float(
-        f1_score(labels, predictions, labels=class_indices, average="macro", zero_division=0)
-    ) if labels else 0.0
+    macro_f1 = (
+        float(
+            f1_score(
+                labels,
+                predictions,
+                labels=class_indices,
+                average="macro",
+                zero_division=0,  # pyright: ignore[reportArgumentType]
+            )
+        )
+        if labels
+        else 0.0
+    )
     report = classification_report(
         labels,
         predictions,
         labels=class_indices,
         target_names=class_names,
         output_dict=True,
-        zero_division=0,
+        zero_division=0,  # pyright: ignore[reportArgumentType]
     )
     return {
         "top1_accuracy": top1,

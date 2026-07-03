@@ -25,10 +25,9 @@ def main() -> None:
     data = raw.get("data", {})
     model = raw.get("model", {})
     is_mesh_experiment = (
-        isinstance(model, dict)
-        and "experiment_kind" in model
-        or isinstance(data, dict)
-        and "mesh_cache_root" in data
+        (isinstance(model, dict) and "experiment_kind" in model)
+        or (isinstance(data, dict) and "mesh_cache_root" in data)
+        or (isinstance(data, dict) and "input_source" in data)
     )
     if is_mesh_experiment:
         config = load_mesh_experiment_config(config_path)

@@ -1,0 +1,36 @@
+experiment:
+  condition_id: silhouette_single_view_top100
+  condition_name: Silhouette Single fixed view (top100 classes)
+  seed: 0
+
+data:
+  input_source: silhouette_cache
+  manifest_path: data/manifests/selected_regular.jsonl
+  mesh_cache_root: data/mesh_cache
+  splits_path: data/manifests/pose_splits.json
+  class_limit: 100
+  render_cache_root: data/render_cache
+  num_workers: 0
+
+model:
+  experiment_kind: single_view
+  backbone: resnet18
+  pretrained: true
+  feature_dim: 512
+  dropout: 0.3
+  num_views: 1
+
+rendering:
+  image_size: 224
+  supersample: 2
+  line_width: 0.4
+
+training:
+  batch_size: 8
+  epochs: 30
+  learning_rate: 0.0001
+  weight_decay: 0.01
+  device: auto
+
+output:
+  runs_root: outputs

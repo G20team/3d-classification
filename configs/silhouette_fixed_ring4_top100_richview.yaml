@@ -1,0 +1,36 @@
+experiment:
+  condition_id: silhouette_fixed_ring4_top100_richview
+  condition_name: Silhouette Fixed Ring-4 (top100 classes, rich pose split)
+  seed: 0
+
+data:
+  input_source: silhouette_cache
+  manifest_path: data/manifests/selected_regular.jsonl
+  mesh_cache_root: data/mesh_cache
+  splits_path: data/manifests/pose_splits_richview.json
+  class_limit: 100
+  render_cache_root: data/render_cache
+  num_workers: 0
+
+model:
+  experiment_kind: fixed_ring4
+  backbone: resnet18
+  pretrained: true
+  feature_dim: 512
+  dropout: 0.3
+  num_views: 4
+
+rendering:
+  image_size: 224
+  supersample: 2
+  line_width: 0.4
+
+training:
+  batch_size: 4
+  epochs: 30
+  learning_rate: 0.0001
+  weight_decay: 0.01
+  device: auto
+
+output:
+  runs_root: outputs

@@ -57,6 +57,12 @@ venvPath = "."
 venv = ".venv"
 extraPaths = ["src"]
 reportMissingTypeStubs = false
+exclude = [
+    "**/__pycache__/**",
+    "**/node_modules/**",
+    "**/.*",
+    ".venv",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from pokemon_3d_cls.experiments.silhouette_rendering import render_silhouette
 from pokemon_3d_cls.rendering.glb import make_label, normalize_vertices, viewpoints
 from pokemon_3d_cls.rendering.pytorch3d_renderer import RendererSettings
 
@@ -31,6 +32,16 @@ def test_normalize_vertices_centers_and_scales() -> None:
 
     assert np.allclose(normalized.mean(axis=0), [0.0, 0.0, 0.0])
     assert np.isclose(np.abs(normalized).max(), 1.0)
+
+
+def test_render_silhouette_returns_grayscale_uint8_image() -> None:
+    vertices = np.array([[-0.5, -0.5, 0.0], [0.5, -0.5, 0.0], [0.0, 0.5, 0.0]])
+    faces = np.array([[0, 1, 2]])
+
+    image = render_silhouette(vertices, faces, azimuth=0.0, elevation=0.0, resolution=16, supersample=1)
+
+    assert image.shape == (16, 16)
+    assert image.dtype == np.uint8
 
 
 def pytest_approx(value: float) -> object:

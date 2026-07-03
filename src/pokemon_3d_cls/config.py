@@ -13,6 +13,7 @@ ViewpointMode = Literal["quiz", "turntable", "sphere"]
 UpAxis = Literal["y", "z"]
 LabelMode = Literal["stem", "species"]
 ExperimentKind = Literal["single_view", "fixed_ring4", "mvtn_circular4"]
+InputSource = Literal["mesh", "silhouette_cache"]
 
 
 @dataclass(frozen=True)
@@ -176,6 +177,7 @@ class SplitConfig:
 class MeshDataConfig:
     """mesh cacheを使う実験データ設定。"""
 
+    input_source: InputSource = "mesh"
     manifest_path: str = "data/manifests/selected_regular.jsonl"
     mesh_cache_root: str = "data/mesh_cache"
     splits_path: str = "data/manifests/pose_splits.json"
@@ -185,6 +187,7 @@ class MeshDataConfig:
     image_size: int = 224
     num_workers: int = 0
     class_limit: int | None = None
+    render_cache_root: str = "data/render_cache"
 
 
 @dataclass(frozen=True)
@@ -202,12 +205,14 @@ class MVTNConfig:
 
 @dataclass(frozen=True)
 class RenderConfig:
-    """PyTorch3Dレンダリング設定。"""
+    """実験レンダリング設定。"""
 
     image_size: int = 224
     camera_distance: float = 2.7
     background_color: tuple[float, float, float] = (0.5, 0.5, 0.5)
     mesh_color: tuple[float, float, float] = (1.0, 1.0, 1.0)
+    supersample: int = 2
+    line_width: float = 0.4
 
 
 @dataclass(frozen=True)
@@ -372,6 +377,7 @@ def parse_mesh_experiment_config(raw: Mapping[str, object]) -> MeshExperimentCon
             run_id=_optional_str(experiment, "run_id"),
         ),
         data=MeshDataConfig(
+            input_source=_input_source(data, "input_source", "mesh"),
             manifest_path=_str(data, "manifest_path", "data/manifests/selected_regular.jsonl"),
             mesh_cache_root=_str(data, "mesh_cache_root", "data/mesh_cache"),
             splits_path=_str(data, "splits_path", "data/manifests/pose_splits.json"),
@@ -381,6 +387,7 @@ def parse_mesh_experiment_config(raw: Mapping[str, object]) -> MeshExperimentCon
             image_size=_positive_int(data, "image_size", 224),
             num_workers=_non_negative_int(data, "num_workers", 0),
             class_limit=_optional_positive_int(data, "class_limit"),
+            render_cache_root=_str(data, "render_cache_root", "data/render_cache"),
         ),
         model=MeshExperimentModelConfig(
             experiment_kind=kind,
@@ -404,6 +411,8 @@ def parse_mesh_experiment_config(raw: Mapping[str, object]) -> MeshExperimentCon
             camera_distance=_positive_float(rendering, "camera_distance", 2.7),
             background_color=_float_tuple3(rendering, "background_color", (0.5, 0.5, 0.5)),
             mesh_color=_float_tuple3(rendering, "mesh_color", (1.0, 1.0, 1.0)),
+            supersample=_positive_int(rendering, "supersample", 2),
+            line_width=_positive_float(rendering, "line_width", 0.4),
         ),
         training=TrainingConfig(
             batch_size=_positive_int(training, "batch_size", 4),
@@ -587,6 +596,14 @@ def _experiment_kind(mapping: Mapping[str, object], key: str, default: Experimen
     if value in ("single_view", "fixed_ring4", "mvtn_circular4"):
         return cast("ExperimentKind", value)
     msg = f"{key} は single_view / fixed_ring4 / mvtn_circular4 のいずれかである必要があります。"
+    raise ValueError(msg)
+
+
+def _input_source(mapping: Mapping[str, object], key: str, default: InputSource) -> InputSource:
+    value = _str(mapping, key, default)
+    if value in ("mesh", "silhouette_cache"):
+        return cast("InputSource", value)
+    msg = f"{key} は mesh / silhouette_cache のいずれかである必要があります。"
     raise ValueError(msg)
 
 
