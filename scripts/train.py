@@ -1,4 +1,4 @@
-"""YAML設定に基づいてMVCNNを学習するCLI。"""
+"""CLI for training MVCNN from a YAML config."""
 
 from __future__ import annotations
 
@@ -15,8 +15,8 @@ from pokemon_3d_cls.training import train_config
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="MVCNNの学習を実行します。")
-    parser.add_argument("--config", required=True, help="学習設定YAML")
+    parser = argparse.ArgumentParser(description="Train an MVCNN model.")
+    parser.add_argument("--config", required=True, help="Training config YAML.")
     args = parser.parse_args()
 
     config_path = Path(args.config)

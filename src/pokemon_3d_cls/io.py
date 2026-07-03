@@ -1,4 +1,4 @@
-"""JSON/YAML/CSV入出力。"""
+"""JSON/YAML/CSV I/O."""
 
 from __future__ import annotations
 
@@ -11,30 +11,30 @@ from pokemon_3d_cls.paths import ensure_directory
 
 
 def read_yaml_mapping(path: str | Path) -> dict[str, object]:
-    """YAMLを読み込み、rootがmappingであることを検証する。"""
+    """Load YAML and validate that the root is a mapping."""
 
     try:
         import yaml
     except ModuleNotFoundError as exc:
-        msg = "PyYAML が必要です。`uv sync` 後に再実行してください。"
+        msg = "PyYAML is required. Run again after `uv sync`."
         raise RuntimeError(msg) from exc
 
     yaml_path = Path(path)
     with yaml_path.open("r", encoding="utf-8") as file:
         raw = yaml.safe_load(file) or {}
     if not isinstance(raw, dict):
-        msg = f"YAML rootはmappingである必要があります: {yaml_path}"
+        msg = f"YAML root must be a mapping: {yaml_path}"
         raise ValueError(msg)
     return raw
 
 
 def write_yaml(path: Path, data: Mapping[str, object]) -> None:
-    """YAMLをUTF-8で保存する。"""
+    """Save YAML as UTF-8."""
 
     try:
         import yaml
     except ModuleNotFoundError as exc:
-        msg = "PyYAML が必要です。`uv sync` 後に再実行してください。"
+        msg = "PyYAML is required. Run again after `uv sync`."
         raise RuntimeError(msg) from exc
 
     ensure_directory(path.parent)
@@ -43,7 +43,7 @@ def write_yaml(path: Path, data: Mapping[str, object]) -> None:
 
 
 def write_json(path: Path, data: Mapping[str, object]) -> None:
-    """JSONをUTF-8で保存する。"""
+    """Save JSON as UTF-8."""
 
     ensure_directory(path.parent)
     with path.open("w", encoding="utf-8") as file:
@@ -52,19 +52,19 @@ def write_json(path: Path, data: Mapping[str, object]) -> None:
 
 
 def read_json(path: str | Path) -> dict[str, object]:
-    """JSONを読み込み、rootがobjectであることを検証する。"""
+    """Load JSON and validate that the root is an object."""
 
     json_path = Path(path)
     with json_path.open("r", encoding="utf-8") as file:
         raw = json.load(file)
     if not isinstance(raw, dict):
-        msg = f"JSON rootはobjectである必要があります: {json_path}"
+        msg = f"JSON root must be an object: {json_path}"
         raise ValueError(msg)
     return cast("dict[str, object]", raw)
 
 
 def write_jsonl(path: Path, rows: Iterable[Mapping[str, object]]) -> None:
-    """JSONLをUTF-8で保存する。"""
+    """Save JSONL as UTF-8."""
 
     ensure_directory(path.parent)
     with path.open("w", encoding="utf-8") as file:
@@ -74,7 +74,7 @@ def write_jsonl(path: Path, rows: Iterable[Mapping[str, object]]) -> None:
 
 
 def read_jsonl(path: str | Path) -> list[dict[str, object]]:
-    """JSONLを読み込む。"""
+    """Load JSONL."""
 
     jsonl_path = Path(path)
     rows: list[dict[str, object]] = []
@@ -84,14 +84,14 @@ def read_jsonl(path: str | Path) -> list[dict[str, object]]:
                 continue
             raw = json.loads(line)
             if not isinstance(raw, dict):
-                msg = f"JSONL rowはobjectである必要があります: {jsonl_path}:{line_number}"
+                msg = f"JSONL row must be an object: {jsonl_path}:{line_number}"
                 raise ValueError(msg)
             rows.append(cast("dict[str, object]", raw))
     return rows
 
 
 def write_csv_rows(path: Path, fieldnames: list[str], rows: Iterable[Mapping[str, object]]) -> None:
-    """CSVをUTF-8で保存する。"""
+    """Save CSV as UTF-8."""
 
     ensure_directory(path.parent)
     with path.open("w", newline="", encoding="utf-8") as file:

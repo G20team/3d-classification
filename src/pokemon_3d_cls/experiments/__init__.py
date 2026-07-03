@@ -1,4 +1,4 @@
-"""MVTN比較実験の学習・評価。"""
+"""Training and evaluation for MVTN comparison experiments."""
 
 from __future__ import annotations
 

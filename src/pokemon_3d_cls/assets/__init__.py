@@ -1,4 +1,4 @@
-"""Pokemon 3D assetsの取得・監査。"""
+"""Pokemon 3D asset fetching and audit helpers."""
 
 from __future__ import annotations
 

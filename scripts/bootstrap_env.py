@@ -1,4 +1,4 @@
-"""環境診断レポートを保存するCLI。"""
+"""CLI for saving an environment diagnostic report."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from pokemon_3d_cls.paths import find_project_root, resolve_project_path
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="PyTorch/PyTorch3D/CUDA環境を診断します。")
+    parser = argparse.ArgumentParser(description="Diagnose the PyTorch/PyTorch3D/CUDA environment.")
     parser.add_argument("--output", default="outputs/environment_report.json")
     args = parser.parse_args()
     project_root = find_project_root(Path.cwd())

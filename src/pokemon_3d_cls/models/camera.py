@@ -1,4 +1,4 @@
-"""実験条件ごとの固定カメラ角度。"""
+"""Fixed camera angles for each experiment condition."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def fixed_camera_angles(
     *,
     device: torch.device | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """実験条件に対応するazimuth/elevation角度をdegreeで返す。"""
+    """Return azimuth/elevation angles in degrees for an experiment condition."""
 
     if experiment_kind == "single_view":
         azimuths = torch.tensor([0.0], dtype=torch.float32, device=device)
@@ -25,5 +25,5 @@ def fixed_camera_angles(
         elevations = torch.zeros(4, dtype=torch.float32, device=device)
         return azimuths, elevations
 
-    msg = f"未知の実験条件です: {experiment_kind}"
+    msg = f"Unknown experiment condition: {experiment_kind}"
     raise ValueError(msg)

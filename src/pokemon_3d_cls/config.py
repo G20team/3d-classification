@@ -1,4 +1,4 @@
-"""YAML設定の読み込みと型付き設定。"""
+"""YAML config loading and typed settings."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ InputSource = Literal["mesh", "silhouette_cache"]
 
 @dataclass(frozen=True)
 class ExperimentConfig:
-    """実験条件の識別情報。"""
+    """Experiment identity information."""
 
     condition_id: str = "mvcnn_baseline"
     condition_name: str = "MVCNN baseline"
@@ -28,7 +28,7 @@ class ExperimentConfig:
 
 @dataclass(frozen=True)
 class DataConfig:
-    """学習データ設定。"""
+    """Training data settings."""
 
     dataset_root: str = "data/dataset"
     illustrations_dir: str | None = None
@@ -40,7 +40,7 @@ class DataConfig:
 
 @dataclass(frozen=True)
 class ModelConfig:
-    """MVCNNモデル設定。"""
+    """MVCNN model settings."""
 
     backbone: BackboneName = "resnet18"
     pretrained: bool = True
@@ -51,7 +51,7 @@ class ModelConfig:
 
 @dataclass(frozen=True)
 class TrainingConfig:
-    """学習ループ設定。"""
+    """Training loop settings."""
 
     batch_size: int = 4
     epochs: int = 30
@@ -62,14 +62,14 @@ class TrainingConfig:
 
 @dataclass(frozen=True)
 class OutputConfig:
-    """実験成果物の出力先設定。"""
+    """Output settings for experiment artifacts."""
 
     runs_root: str = "outputs/runs"
 
 
 @dataclass(frozen=True)
 class TrainRunConfig:
-    """学習実行設定。"""
+    """Training run settings."""
 
     experiment: ExperimentConfig = field(default_factory=ExperimentConfig)
     data: DataConfig = field(default_factory=DataConfig)
@@ -78,21 +78,21 @@ class TrainRunConfig:
     output: OutputConfig = field(default_factory=OutputConfig)
 
     def to_dict(self) -> dict[str, object]:
-        """メタデータ保存用に辞書化する。"""
+        """Convert to a dictionary for metadata serialization."""
 
         return cast("dict[str, object]", asdict(self))
 
 
 @dataclass(frozen=True)
 class GenerationInputConfig:
-    """GLB入力設定。"""
+    """GLB input settings."""
 
     path: str = "data/models"
 
 
 @dataclass(frozen=True)
 class GenerationOutputConfig:
-    """シルエットデータセット出力設定。"""
+    """Silhouette dataset output settings."""
 
     dataset_root: str = "data/dataset"
     manifest_name: str = "manifest.csv"
@@ -100,7 +100,7 @@ class GenerationOutputConfig:
 
 @dataclass(frozen=True)
 class RenderingConfig:
-    """シルエットレンダリング設定。"""
+    """Silhouette rendering settings."""
 
     views: int = 36
     mode: ViewpointMode = "quiz"
@@ -114,14 +114,14 @@ class RenderingConfig:
 
 @dataclass(frozen=True)
 class LabelConfig:
-    """生成データセットのラベル付け設定。"""
+    """Labeling settings for generated datasets."""
 
     mode: LabelMode = "stem"
 
 
 @dataclass(frozen=True)
 class GenerationConfig:
-    """シルエット生成実行設定。"""
+    """Silhouette generation run settings."""
 
     seed: int = 0
     input: GenerationInputConfig = field(default_factory=GenerationInputConfig)
@@ -130,14 +130,14 @@ class GenerationConfig:
     labels: LabelConfig = field(default_factory=LabelConfig)
 
     def to_dict(self) -> dict[str, object]:
-        """メタデータ保存用に辞書化する。"""
+        """Convert to a dictionary for metadata serialization."""
 
         return cast("dict[str, object]", asdict(self))
 
 
 @dataclass(frozen=True)
 class PoseSplitValues:
-    """姿勢splitのyaw/elevation条件。"""
+    """Yaw/elevation conditions for pose splits."""
 
     yaw_offsets: tuple[float, ...]
     elevation_offsets: tuple[float, ...]
@@ -145,7 +145,7 @@ class PoseSplitValues:
 
 @dataclass(frozen=True)
 class SplitConfig:
-    """closed-set cross-orientation用の姿勢split設定。"""
+    """Pose split settings for closed-set cross-orientation experiments."""
 
     output_path: str = "data/manifests/pose_splits.json"
     train: PoseSplitValues = field(
@@ -168,14 +168,14 @@ class SplitConfig:
     )
 
     def to_dict(self) -> dict[str, object]:
-        """JSON/YAML保存用に辞書化する。"""
+        """Convert to a dictionary for JSON/YAML serialization."""
 
         return cast("dict[str, object]", asdict(self))
 
 
 @dataclass(frozen=True)
 class MeshDataConfig:
-    """mesh cacheを使う実験データ設定。"""
+    """Experiment data settings using mesh caches."""
 
     input_source: InputSource = "mesh"
     manifest_path: str = "data/manifests/selected_regular.jsonl"
@@ -192,7 +192,7 @@ class MeshDataConfig:
 
 @dataclass(frozen=True)
 class MVTNConfig:
-    """learned_circular相当のMVTN設定。"""
+    """MVTN settings equivalent to learned_circular."""
 
     enabled: bool = False
     num_views: int = 4
@@ -205,7 +205,7 @@ class MVTNConfig:
 
 @dataclass(frozen=True)
 class RenderConfig:
-    """実験レンダリング設定。"""
+    """Experiment rendering settings."""
 
     image_size: int = 224
     camera_distance: float = 2.7
@@ -217,7 +217,7 @@ class RenderConfig:
 
 @dataclass(frozen=True)
 class MeshExperimentModelConfig:
-    """mesh render分類実験のモデル設定。"""
+    """Model settings for mesh-render classification experiments."""
 
     experiment_kind: ExperimentKind = "single_view"
     backbone: BackboneName = "resnet18"
@@ -230,7 +230,7 @@ class MeshExperimentModelConfig:
 
 @dataclass(frozen=True)
 class MeshExperimentConfig:
-    """Single/Fixed Ring-4/MVTN共通の実験設定。"""
+    """Shared experiment settings for Single/Fixed Ring-4/MVTN."""
 
     experiment: ExperimentConfig = field(default_factory=ExperimentConfig)
     data: MeshDataConfig = field(default_factory=MeshDataConfig)
@@ -240,37 +240,37 @@ class MeshExperimentConfig:
     output: OutputConfig = field(default_factory=lambda: OutputConfig(runs_root="outputs"))
 
     def to_dict(self) -> dict[str, object]:
-        """メタデータ保存用に辞書化する。"""
+        """Convert to a dictionary for metadata serialization."""
 
         return cast("dict[str, object]", asdict(self))
 
 
 def load_training_config(path: str | Path) -> TrainRunConfig:
-    """学習用YAML設定を読み込む。"""
+    """Load a training YAML config."""
 
     return parse_training_config(read_yaml_mapping(path))
 
 
 def load_generation_config(path: str | Path) -> GenerationConfig:
-    """シルエット生成用YAML設定を読み込む。"""
+    """Load a silhouette generation YAML config."""
 
     return parse_generation_config(read_yaml_mapping(path))
 
 
 def load_split_config(path: str | Path) -> SplitConfig:
-    """姿勢split用YAML設定を読み込む。"""
+    """Load a pose split YAML config."""
 
     return parse_split_config(read_yaml_mapping(path))
 
 
 def load_mesh_experiment_config(path: str | Path) -> MeshExperimentConfig:
-    """mesh render分類実験用YAML設定を読み込む。"""
+    """Load a YAML config for mesh-render classification experiments."""
 
     return parse_mesh_experiment_config(read_yaml_mapping(path))
 
 
 def parse_training_config(raw: Mapping[str, object]) -> TrainRunConfig:
-    """mappingから学習用の型付き設定を構築する。"""
+    """Build typed training settings from a mapping."""
 
     experiment = _mapping(raw.get("experiment", {}), "experiment")
     data = _mapping(raw.get("data", {}), "data")
@@ -314,7 +314,7 @@ def parse_training_config(raw: Mapping[str, object]) -> TrainRunConfig:
 
 
 def parse_generation_config(raw: Mapping[str, object]) -> GenerationConfig:
-    """mappingからシルエット生成用の型付き設定を構築する。"""
+    """Build typed silhouette generation settings from a mapping."""
 
     input_config = _mapping(raw.get("input", {}), "input")
     output = _mapping(raw.get("output", {}), "output")
@@ -343,7 +343,7 @@ def parse_generation_config(raw: Mapping[str, object]) -> GenerationConfig:
 
 
 def parse_split_config(raw: Mapping[str, object]) -> SplitConfig:
-    """mappingから姿勢split設定を構築する。"""
+    """Build pose split settings from a mapping."""
 
     train = _mapping(raw.get("train", {}), "train")
     validation = _mapping(raw.get("validation", {}), "validation")
@@ -357,7 +357,7 @@ def parse_split_config(raw: Mapping[str, object]) -> SplitConfig:
 
 
 def parse_mesh_experiment_config(raw: Mapping[str, object]) -> MeshExperimentConfig:
-    """mappingからSingle/Fixed Ring-4/MVTN実験設定を構築する。"""
+    """Build Single/Fixed Ring-4/MVTN experiment settings from a mapping."""
 
     experiment = _mapping(raw.get("experiment", {}), "experiment")
     data = _mapping(raw.get("data", {}), "data")
@@ -427,7 +427,7 @@ def parse_mesh_experiment_config(raw: Mapping[str, object]) -> MeshExperimentCon
 
 def _mapping(value: object, name: str) -> Mapping[str, object]:
     if not isinstance(value, Mapping):
-        msg = f"{name} はmappingである必要があります。"
+        msg = f"{name} must be a mapping."
         raise ValueError(msg)
     return cast("Mapping[str, object]", value)
 
@@ -435,7 +435,7 @@ def _mapping(value: object, name: str) -> Mapping[str, object]:
 def _str(mapping: Mapping[str, object], key: str, default: str | None = None) -> str:
     value = mapping.get(key, default)
     if not isinstance(value, str) or not value:
-        msg = f"{key} は空でない文字列である必要があります。"
+        msg = f"{key} must be a non-empty string."
         raise ValueError(msg)
     return value
 
@@ -445,7 +445,7 @@ def _optional_str(mapping: Mapping[str, object], key: str) -> str | None:
     if value is None:
         return None
     if not isinstance(value, str):
-        msg = f"{key} は文字列またはnullである必要があります。"
+        msg = f"{key} must be a string or null."
         raise ValueError(msg)
     return value
 
@@ -453,7 +453,7 @@ def _optional_str(mapping: Mapping[str, object], key: str) -> str | None:
 def _int(mapping: Mapping[str, object], key: str, default: int) -> int:
     value = mapping.get(key, default)
     if not isinstance(value, int) or isinstance(value, bool):
-        msg = f"{key} は整数である必要があります。"
+        msg = f"{key} must be an integer."
         raise ValueError(msg)
     return value
 
@@ -461,7 +461,7 @@ def _int(mapping: Mapping[str, object], key: str, default: int) -> int:
 def _positive_int(mapping: Mapping[str, object], key: str, default: int) -> int:
     value = _int(mapping, key, default)
     if value <= 0:
-        msg = f"{key} は1以上の整数である必要があります。"
+        msg = f"{key} must be an integer greater than or equal to 1."
         raise ValueError(msg)
     return value
 
@@ -469,7 +469,7 @@ def _positive_int(mapping: Mapping[str, object], key: str, default: int) -> int:
 def _non_negative_int(mapping: Mapping[str, object], key: str, default: int) -> int:
     value = _int(mapping, key, default)
     if value < 0:
-        msg = f"{key} は0以上の整数である必要があります。"
+        msg = f"{key} must be an integer greater than or equal to 0."
         raise ValueError(msg)
     return value
 
@@ -479,7 +479,7 @@ def _optional_positive_int(mapping: Mapping[str, object], key: str) -> int | Non
     if value is None:
         return None
     if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
-        msg = f"{key} はnullまたは1以上の整数である必要があります。"
+        msg = f"{key} must be null or an integer greater than or equal to 1."
         raise ValueError(msg)
     return value
 
@@ -487,7 +487,7 @@ def _optional_positive_int(mapping: Mapping[str, object], key: str) -> int | Non
 def _float(mapping: Mapping[str, object], key: str, default: float) -> float:
     value = mapping.get(key, default)
     if isinstance(value, bool) or not isinstance(value, int | float):
-        msg = f"{key} は数値である必要があります。"
+        msg = f"{key} must be a number."
         raise ValueError(msg)
     return float(value)
 
@@ -495,7 +495,7 @@ def _float(mapping: Mapping[str, object], key: str, default: float) -> float:
 def _positive_float(mapping: Mapping[str, object], key: str, default: float) -> float:
     value = _float(mapping, key, default)
     if value <= 0:
-        msg = f"{key} は0より大きい数値である必要があります。"
+        msg = f"{key} must be greater than 0."
         raise ValueError(msg)
     return value
 
@@ -503,7 +503,7 @@ def _positive_float(mapping: Mapping[str, object], key: str, default: float) -> 
 def _non_negative_float(mapping: Mapping[str, object], key: str, default: float) -> float:
     value = _float(mapping, key, default)
     if value < 0:
-        msg = f"{key} は0以上の数値である必要があります。"
+        msg = f"{key} must be greater than or equal to 0."
         raise ValueError(msg)
     return value
 
@@ -518,7 +518,7 @@ def _bounded_float(
 ) -> float:
     value = _float(mapping, key, default)
     if not min_value <= value <= max_value:
-        msg = f"{key} は {min_value} 以上 {max_value} 以下である必要があります。"
+        msg = f"{key} must be between {min_value} and {max_value}."
         raise ValueError(msg)
     return value
 
@@ -526,16 +526,16 @@ def _bounded_float(
 def _float_sequence(mapping: Mapping[str, object], key: str, default: tuple[float, ...]) -> tuple[float, ...]:
     value = mapping.get(key, default)
     if not isinstance(value, list | tuple) or isinstance(value, str):
-        msg = f"{key} は数値listである必要があります。"
+        msg = f"{key} must be a list of numbers."
         raise ValueError(msg)
     floats: list[float] = []
     for item in value:
         if isinstance(item, bool) or not isinstance(item, int | float):
-            msg = f"{key} は数値listである必要があります。"
+            msg = f"{key} must be a list of numbers."
             raise ValueError(msg)
         floats.append(float(item))
     if not floats:
-        msg = f"{key} は空にできません。"
+        msg = f"{key} must not be empty."
         raise ValueError(msg)
     return tuple(floats)
 
@@ -549,7 +549,7 @@ def _float_tuple(
 ) -> tuple[float, ...]:
     values = _float_sequence(mapping, key, default)
     if len(values) != length:
-        msg = f"{key} は長さ {length} の数値listである必要があります。"
+        msg = f"{key} must be a numeric list of length {length}."
         raise ValueError(msg)
     return values
 
@@ -566,7 +566,7 @@ def _float_tuple3(
 def _bool(mapping: Mapping[str, object], key: str, default: bool) -> bool:
     value = mapping.get(key, default)
     if not isinstance(value, bool):
-        msg = f"{key} は真偽値である必要があります。"
+        msg = f"{key} must be a boolean."
         raise ValueError(msg)
     return value
 
@@ -587,7 +587,7 @@ def _backbone(mapping: Mapping[str, object], key: str, default: BackboneName) ->
     value = _str(mapping, key, default)
     if value in ("resnet18", "simple_cnn"):
         return cast("BackboneName", value)
-    msg = f"{key} は resnet18 / simple_cnn のいずれかである必要があります。"
+    msg = f"{key} must be one of resnet18 / simple_cnn."
     raise ValueError(msg)
 
 
@@ -595,7 +595,7 @@ def _experiment_kind(mapping: Mapping[str, object], key: str, default: Experimen
     value = _str(mapping, key, default)
     if value in ("single_view", "fixed_ring4", "mvtn_circular4"):
         return cast("ExperimentKind", value)
-    msg = f"{key} は single_view / fixed_ring4 / mvtn_circular4 のいずれかである必要があります。"
+    msg = f"{key} must be one of single_view / fixed_ring4 / mvtn_circular4."
     raise ValueError(msg)
 
 
@@ -603,7 +603,7 @@ def _input_source(mapping: Mapping[str, object], key: str, default: InputSource)
     value = _str(mapping, key, default)
     if value in ("mesh", "silhouette_cache"):
         return cast("InputSource", value)
-    msg = f"{key} は mesh / silhouette_cache のいずれかである必要があります。"
+    msg = f"{key} must be one of mesh / silhouette_cache."
     raise ValueError(msg)
 
 
@@ -611,7 +611,7 @@ def _viewpoint_mode(mapping: Mapping[str, object], key: str, default: ViewpointM
     value = _str(mapping, key, default)
     if value in ("quiz", "turntable", "sphere"):
         return cast("ViewpointMode", value)
-    msg = f"{key} は quiz / turntable / sphere のいずれかである必要があります。"
+    msg = f"{key} must be one of quiz / turntable / sphere."
     raise ValueError(msg)
 
 
@@ -619,7 +619,7 @@ def _up_axis(mapping: Mapping[str, object], key: str, default: UpAxis) -> UpAxis
     value = _str(mapping, key, default)
     if value in ("y", "z"):
         return cast("UpAxis", value)
-    msg = f"{key} は y / z のいずれかである必要があります。"
+    msg = f"{key} must be one of y / z."
     raise ValueError(msg)
 
 
@@ -627,5 +627,5 @@ def _label_mode(mapping: Mapping[str, object], key: str, default: LabelMode) -> 
     value = _str(mapping, key, default)
     if value in ("stem", "species"):
         return cast("LabelMode", value)
-    msg = f"{key} は stem / species のいずれかである必要があります。"
+    msg = f"{key} must be one of stem / species."
     raise ValueError(msg)

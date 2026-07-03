@@ -1,4 +1,4 @@
-"""保存checkpointを指定splitで評価するCLI。"""
+"""CLI for evaluating a saved checkpoint on a selected split."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from pokemon_3d_cls.training import resolve_device
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="mesh実験checkpointを評価します。")
+    parser = argparse.ArgumentParser(description="Evaluate a mesh experiment checkpoint.")
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--split", default="test")
     parser.add_argument("--output-dir")
@@ -30,7 +30,7 @@ def main() -> None:
         "--batch-size",
         type=_positive_int,
         default=1,
-        help="評価時のbatch size。WSLのメモリ不足を避けるため既定値は1です。",
+        help="Evaluation batch size. Defaults to 1 to reduce memory use on WSL.",
     )
     args = parser.parse_args()
     project_root = find_project_root(Path.cwd())
@@ -111,7 +111,7 @@ def main() -> None:
 def _positive_int(value: str) -> int:
     parsed = int(value)
     if parsed <= 0:
-        msg = "正の整数を指定してください。"
+        msg = "Specify a positive integer."
         raise argparse.ArgumentTypeError(msg)
     return parsed
 

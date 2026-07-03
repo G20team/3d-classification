@@ -1,4 +1,4 @@
-"""Pokemon 3D GLBアセットの監査。"""
+"""Audit Pokemon 3D GLB assets."""
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ NON_REGULAR_MARKERS = {
 
 @dataclass(frozen=True)
 class AssetAuditRecord:
-    """1つのGLBアセットの監査結果。"""
+    """Audit result for one GLB asset."""
 
     asset_path: str
     asset_filename: str
@@ -65,7 +65,7 @@ def audit_assets(
     pokeapi_cache_path: Path,
     allow_pokeapi_fetch: bool = True,
 ) -> tuple[list[AssetAuditRecord], list[AssetAuditRecord]]:
-    """GLBを再帰走査し、監査JSONLと採用manifestを保存する。"""
+    """Recursively scan GLB files and save audit JSONL plus selected manifests."""
 
     pokemon_names = load_or_fetch_pokemon_names(pokeapi_cache_path, allow_fetch=allow_pokeapi_fetch)
     glb_files = sorted(asset_root.rglob("*.glb"))
@@ -82,7 +82,7 @@ def audit_assets(
 
 
 def summarize_audit(records: list[AssetAuditRecord], selected: list[AssetAuditRecord]) -> dict[str, object]:
-    """監査件数を集計する。"""
+    """Aggregate audit counts."""
 
     reasons: dict[str, int] = {}
     for record in records:
@@ -97,7 +97,7 @@ def summarize_audit(records: list[AssetAuditRecord], selected: list[AssetAuditRe
 
 
 def extract_pokemon_id_from_path(path: str | Path) -> int | None:
-    """ファイル名や親ディレクトリからNational Dex IDを推定する。"""
+    """Infer the National Dex ID from the file name or parent directories."""
 
     for part in reversed(Path(path).parts):
         candidates = re.findall(r"(?<!\d)(\d{1,4})(?!\d)", part)
@@ -109,7 +109,7 @@ def extract_pokemon_id_from_path(path: str | Path) -> int | None:
 
 
 def infer_category(path: Path, asset_root: Path) -> str:
-    """asset rootから見たpath segmentからカテゴリを推定する。"""
+    """Infer a category from path segments relative to the asset root."""
 
     try:
         relative_parts = path.relative_to(asset_root).parts
@@ -123,19 +123,19 @@ def infer_category(path: Path, asset_root: Path) -> str:
 
 
 def is_regular_candidate(path: str | Path, category: str) -> bool:
-    """初期実験に使うregular通常形候補かを判定する。"""
+    """Determine whether an asset is a regular-form candidate for initial experiments."""
 
     text = Path(path).as_posix().lower()
     if any(marker in text for marker in NON_REGULAR_MARKERS):
         return False
     if category.lower() == "regular":
         return True
-    # 構成決め打ちは避けるが、regularが明示されないassetsは初期実験から外す。
+    # Avoid hard-coding the layout, but exclude assets without an explicit regular marker from initial experiments.
     return "/regular/" in f"/{text}/"
 
 
 def load_trimesh_mesh(path: Path) -> trimesh.Trimesh:
-    """GLBを読み込み、scene内geometryを結合したTrimeshを返す。"""
+    """Load a GLB and return a Trimesh with scene geometry concatenated."""
 
     try:
         mesh = _load_trimesh_mesh_raw(path)
@@ -148,7 +148,7 @@ def load_trimesh_mesh(path: Path) -> trimesh.Trimesh:
     if path.suffix.lower() == ".glb":
         return load_draco_glb_mesh(path)
 
-    msg = f"未対応または正規化不能なmeshです: {path}"
+    msg = f"Unsupported or non-normalizable mesh: {path}"
     raise ValueError(msg)
 
 
@@ -157,12 +157,12 @@ def _load_trimesh_mesh_raw(path: Path) -> trimesh.Trimesh:
     if isinstance(loaded, trimesh.Scene):
         geometries = [geometry for geometry in loaded.geometry.values() if isinstance(geometry, trimesh.Trimesh)]
         if not geometries:
-            msg = "sceneにTrimesh geometryがありません。"
+            msg = "The scene has no Trimesh geometry."
             raise ValueError(msg)
         return trimesh.util.concatenate(tuple(geometries))
     if isinstance(loaded, trimesh.Trimesh):
         return loaded
-    msg = f"未対応のtrimesh読み込み結果です: {type(loaded).__name__}"
+    msg = f"Unsupported trimesh load result: {type(loaded).__name__}"
     raise ValueError(msg)
 
 

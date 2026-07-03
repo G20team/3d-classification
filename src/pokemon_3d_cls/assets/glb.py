@@ -1,4 +1,4 @@
-"""GLBアセット読み込みの補助処理。"""
+"""Helpers for loading GLB assets."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ DRACO_EXTENSION = "KHR_draco_mesh_compression"
 
 
 def load_draco_glb_mesh(path: Path) -> trimesh.Trimesh:
-    """KHR_draco_mesh_compression付きGLBを復元してTrimeshにする。"""
+    """Decode a GLB with KHR_draco_mesh_compression into a Trimesh."""
 
     gltf, bin_chunk = _read_glb(path)
     primitives: list[tuple[np.ndarray, np.ndarray]] = []
@@ -33,7 +33,7 @@ def load_draco_glb_mesh(path: Path) -> trimesh.Trimesh:
             vertices = _apply_transform(vertices, transform)
             primitives.append((vertices, faces))
     if not primitives:
-        msg = "Draco圧縮primitiveが見つかりません。"
+        msg = "No Draco-compressed primitive was found."
         raise ValueError(msg)
 
     vertices_parts: list[np.ndarray] = []
@@ -51,7 +51,7 @@ def load_draco_glb_mesh(path: Path) -> trimesh.Trimesh:
 
 
 def glb_has_texture(path: Path) -> bool:
-    """GLB JSONからテクスチャ参照の有無を確認する。"""
+    """Check whether GLB JSON contains texture references."""
 
     try:
         gltf, _ = _read_glb(path)
@@ -68,14 +68,14 @@ def glb_has_texture(path: Path) -> bool:
 def _read_glb(path: Path) -> tuple[dict[str, object], bytes]:
     data = path.read_bytes()
     if len(data) < 20:
-        msg = "GLBファイルが短すぎます。"
+        msg = "GLB file is too short."
         raise ValueError(msg)
     magic, version, declared_length = struct.unpack_from("<III", data, 0)
     if magic != 0x46546C67 or version != 2:
-        msg = "GLB v2ではありません。"
+        msg = "GLB is not version 2."
         raise ValueError(msg)
     if declared_length > len(data):
-        msg = "GLBの宣言サイズが実ファイルサイズを超えています。"
+        msg = "Declared GLB size exceeds the actual file size."
         raise ValueError(msg)
 
     offset = 12
@@ -91,7 +91,7 @@ def _read_glb(path: Path) -> tuple[dict[str, object], bytes]:
         elif chunk_type == BIN_CHUNK_TYPE:
             bin_chunk = chunk
     if gltf is None or bin_chunk is None:
-        msg = "GLBにJSON chunkまたはBIN chunkがありません。"
+        msg = "GLB does not contain a JSON chunk or BIN chunk."
         raise ValueError(msg)
     return gltf, bin_chunk
 
@@ -113,7 +113,7 @@ def _decode_draco_primitive(
     byte_length = _as_int(buffer_view["byteLength"], "byteLength")
     decoded = DracoPy.decode(bin_chunk[byte_offset : byte_offset + byte_length])
     if not hasattr(decoded, "faces"):
-        msg = "Draco meshではなくpoint cloudが復元されました。"
+        msg = "Decoded a point cloud instead of a Draco mesh."
         raise ValueError(msg)
 
     attributes = cast("dict[str, int]", draco["attributes"])
@@ -121,10 +121,10 @@ def _decode_draco_primitive(
     vertices = np.asarray(position_attribute["data"], dtype=np.float32)
     faces = np.asarray(decoded.faces, dtype=np.int64)
     if vertices.ndim != 2 or vertices.shape[1] != 3:
-        msg = "POSITION属性が3次元頂点ではありません。"
+        msg = "POSITION attribute is not 3D vertices."
         raise ValueError(msg)
     if faces.ndim != 2 or faces.shape[1] != 3:
-        msg = "Draco meshのfaceが三角形ではありません。"
+        msg = "Draco mesh faces are not triangles."
         raise ValueError(msg)
     return vertices, faces
 
@@ -225,6 +225,6 @@ def _contains_texture_info(value: object) -> bool:
 
 def _as_int(value: object, name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
-        msg = f"{name} は整数である必要があります。"
+        msg = f"{name} must be an integer."
         raise ValueError(msg)
     return value

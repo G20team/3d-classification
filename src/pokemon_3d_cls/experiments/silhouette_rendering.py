@@ -1,4 +1,4 @@
-"""mesh cacheからの黒塗りシルエットレンダリング。"""
+"""Filled-silhouette rendering from mesh caches."""
 
 from __future__ import annotations
 
@@ -20,11 +20,11 @@ from matplotlib.collections import PolyCollection  # noqa: E402
 
 class _RgbaCanvas(Protocol):
     def draw(self) -> object:
-        """matplotlib canvasを描画する。"""
+        """Draw the matplotlib canvas."""
         ...
 
     def buffer_rgba(self) -> memoryview:
-        """RGBA bufferを返す。"""
+        """Return the RGBA buffer."""
         ...
 
 
@@ -39,7 +39,7 @@ def render_silhouette(
     pad: float = 1.25,
     line_width: float = 0.4,
 ) -> np.ndarray:
-    """1視点の黒塗りシルエット画像をuint8グレースケール配列として返す。"""
+    """Return a one-view filled silhouette image as a uint8 grayscale array."""
 
     rotation = _rotation_x(np.radians(elevation)) @ _rotation_y(np.radians(azimuth))
     projected = vertices @ rotation.T

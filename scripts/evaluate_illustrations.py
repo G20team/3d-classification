@@ -1,4 +1,4 @@
-"""学習済みシルエット分類器を公式イラスト由来シルエットで評価するCLI。"""
+"""CLI for evaluating a trained silhouette classifier on official-artwork silhouettes."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from pokemon_3d_cls.training import resolve_device
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="公式イラスト由来シルエットで学習済みモデルを評価します。")
+    parser = argparse.ArgumentParser(description="Evaluate a trained model on official-artwork silhouettes.")
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--manifest", default="data/manifests/selected_regular.jsonl")
     parser.add_argument("--illustration-silhouette-dir", default="data/illustrations_silhouette")
@@ -97,7 +97,7 @@ def _class_rows(manifest_path: Path, class_limit: int | None) -> list[dict[str, 
 
 def _mapping(value: object, name: str) -> Mapping[str, object]:
     if not isinstance(value, Mapping):
-        msg = f"{name} はmappingである必要があります。"
+        msg = f"{name} must be a mapping."
         raise ValueError(msg)
     return cast("Mapping[str, object]", value)
 
@@ -105,7 +105,7 @@ def _mapping(value: object, name: str) -> Mapping[str, object]:
 def _required_int(row: Mapping[str, object], key: str) -> int:
     value = row.get(key)
     if isinstance(value, bool) or not isinstance(value, int | str):
-        msg = f"{key} は整数に変換できる値である必要があります。"
+        msg = f"{key} must be convertible to an integer."
         raise ValueError(msg)
     return int(value)
 
@@ -113,7 +113,7 @@ def _required_int(row: Mapping[str, object], key: str) -> int:
 def _optional_int(row: Mapping[str, object], key: str, default: int) -> int:
     value = row.get(key, default)
     if isinstance(value, bool) or not isinstance(value, int | str):
-        msg = f"{key} は整数に変換できる値である必要があります。"
+        msg = f"{key} must be convertible to an integer."
         raise ValueError(msg)
     return int(value)
 
@@ -123,7 +123,7 @@ def _optional_int_or_none(row: Mapping[str, object], key: str) -> int | None:
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, int | str):
-        msg = f"{key} は整数またはnullである必要があります。"
+        msg = f"{key} must be an integer or null."
         raise ValueError(msg)
     return int(value)
 
@@ -131,7 +131,7 @@ def _optional_int_or_none(row: Mapping[str, object], key: str) -> int | None:
 def _required_float(row: Mapping[str, object], key: str) -> float:
     value = row.get(key)
     if isinstance(value, bool) or not isinstance(value, int | float | str):
-        msg = f"{key} は数値に変換できる値である必要があります。"
+        msg = f"{key} must be convertible to a number."
         raise ValueError(msg)
     return float(value)
 
@@ -139,7 +139,7 @@ def _required_float(row: Mapping[str, object], key: str) -> float:
 def _required_str(row: Mapping[str, object], key: str) -> str:
     value = row.get(key)
     if not isinstance(value, str) or not value:
-        msg = f"{key} は空でない文字列である必要があります。"
+        msg = f"{key} must be a non-empty string."
         raise ValueError(msg)
     return value
 

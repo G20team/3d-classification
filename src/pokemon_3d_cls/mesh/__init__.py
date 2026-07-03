@@ -1,4 +1,4 @@
-"""mesh正規化とcache。"""
+"""Mesh normalization and caching."""
 
 from __future__ import annotations
 

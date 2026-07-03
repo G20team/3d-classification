@@ -1,4 +1,4 @@
-"""GLBアセットを監査してmanifestを生成するCLI。"""
+"""CLI for auditing GLB assets and generating manifests."""
 
 from __future__ import annotations
 
@@ -12,14 +12,14 @@ from pokemon_3d_cls.paths import find_project_root, resolve_project_path
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Pokemon 3D GLB assetsを監査します。")
+    parser = argparse.ArgumentParser(description="Audit Pokemon 3D GLB assets.")
     parser.add_argument("--asset-root", required=True)
     parser.add_argument("--output", default="data/manifests/asset_audit.jsonl")
     parser.add_argument("--selected-output", default="data/manifests/selected_regular.jsonl")
     parser.add_argument("--summary-json", default="data/manifests/asset_audit_summary.json")
     parser.add_argument("--summary-md", default="data/manifests/asset_audit_summary.md")
     parser.add_argument("--pokeapi-cache", default="data/manifests/pokeapi_cache.json")
-    parser.add_argument("--offline", action="store_true", help="PokeAPIを取得せずcacheのみ使う")
+    parser.add_argument("--offline", action="store_true", help="Use only the cache without fetching PokeAPI.")
     args = parser.parse_args()
     project_root = find_project_root(Path.cwd())
     records, selected = audit_assets(

@@ -1,4 +1,4 @@
-"""ポケモン3Dモデル識別実験用パッケージ。"""
+"""Package for Pokemon 3D model identification experiments."""
 
 from __future__ import annotations
 

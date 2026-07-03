@@ -1,47 +1,47 @@
-# ポケモン3D MVTNマルチビュー個体識別実験環境
+# Pokemon 3D MVTN Multi-View Identification
 
-Pokemon-3D-api/assets のGLB形式3Dアセットを用い、複数視点からレンダリングした画像で
-ポケモン名を識別する実験環境です。
+This repository contains an experimental environment for identifying Pokemon from rendered views of GLB
+models from [Pokemon-3D-api/assets](https://github.com/Pokemon-3D-api/assets).
 
-このリポジトリで扱うタスクは未知ポケモン分類ではなく、学習時に登場した既知カタログ内の
-ポケモンを未知姿勢から識別する **closed-set cross-orientation asset identification** です。
-研究上の主な問いは、限られた4視点という条件で、MVTNがポケモン形状に応じてカメラ位置を学習することで、
-固定円環状カメラ配置より未知姿勢識別を改善できるか、です。
+The task is not open-set recognition of unseen Pokemon. It is **closed-set cross-orientation asset
+identification**: the same Pokemon catalog appears during training and evaluation, while the camera
+orientations are split so the model must identify known assets from unseen poses.
 
-## 比較条件
+The main research question is whether a four-view MVTN setup can learn Pokemon-dependent camera offsets
+that improve identification under unseen orientations compared with a fixed circular four-view camera.
 
-| 条件 | 概要 | 主なconfig |
+## Experiment Conditions
+
+| Condition | Summary | Main config |
 | --- | --- | --- |
-| Single-view | 1つの固定視点だけで識別する基準条件 | `configs/single_view.yaml` |
-| Fixed Ring-4 MVCNN | 4つの固定円環視点をview-wise max poolingで統合する条件 | `configs/fixed_ring4.yaml` |
-| Learned Circular-4 MVTN | 固定Ring-4を初期値に、mesh形状から4視点の角度補正を学習する条件 | `configs/mvtn_circular4.yaml` |
+| Single-view | Baseline that classifies from one fixed view. | `configs/single_view.yaml` |
+| Fixed Ring-4 MVCNN | MVCNN baseline that aggregates four fixed circular views with view-wise max pooling. | `configs/fixed_ring4.yaml` |
+| Learned Circular-4 MVTN | MVTN condition initialized from Fixed Ring-4 and trained to predict four camera angle offsets from mesh geometry. | `configs/mvtn_circular4.yaml` |
 
-## ドキュメント
+## Documentation
 
-最初に読むもの:
+Start here:
 
-- [環境セットアップ](docs/setup.md): `uv`、Python 3.10、PyTorch3D、環境診断、開発用チェック。
-- [実験ワークフロー](docs/experiment_workflow.md): セットアップから評価までの全体順序。
-- [データ準備](docs/data_pipeline.md): アセット取得、監査、可視確認、mesh cache、姿勢split。
+- [Setup](docs/setup.md): `uv`, Python 3.10, PyTorch3D, environment checks, and developer checks.
+- [Experiment workflow](docs/experiment_workflow.md): end-to-end order from setup to evaluation.
+- [Data pipeline](docs/data_pipeline.md): asset download, audit, visual inspection, mesh cache, and pose splits.
 
-実験条件ごとの詳細:
+Experiment guides:
 
-- [実験設計の概要](docs/experiments/index.md): 3条件の比較設計、共通設定、debug subset、本実験の進め方。
-- [Single-view](docs/experiments/single_view.md): 基準条件の目的、実行、評価。
-- [Fixed Ring-4 MVCNN](docs/experiments/fixed_ring4.md): 固定4視点条件の目的、実行、評価。
-- [Learned Circular-4 MVTN](docs/experiments/mvtn_circular4.md): 学習視点条件の目的、実行、camera log確認。
-- [Single-view 詳細解説](docs/experiments/single_view_details.md): 1固定視点条件の目的、前提、手法、評価観点。
-- [Fixed Ring-4 MVCNN 詳細解説](docs/experiments/fixed_ring4_details.md): 固定4視点MVCNN条件の設計意図と比較方法。
-- [Learned Circular-4 MVTN 詳細解説](docs/experiments/mvtn_circular4_details.md): 学習視点条件のモデル構成、camera log、解釈上の注意。
-- [評価と結果解釈](docs/evaluation.md): checkpoint評価、metrics、条件間比較、レポート観点。
+- [Experiment design overview](docs/experiments/index.md): shared design, debug subset, and full runs.
+- [Single-view](docs/experiments/single_view.md): baseline purpose, commands, and evaluation.
+- [Fixed Ring-4 MVCNN](docs/experiments/fixed_ring4.md): fixed four-view purpose, commands, and evaluation.
+- [Learned Circular-4 MVTN](docs/experiments/mvtn_circular4.md): learned-view purpose, commands, and camera logs.
+- [Single-view details](docs/experiments/single_view_details.md): assumptions, method, metrics, and interpretation.
+- [Fixed Ring-4 MVCNN details](docs/experiments/fixed_ring4_details.md): design rationale and comparison points.
+- [Learned Circular-4 MVTN details](docs/experiments/mvtn_circular4_details.md): model structure, camera logs, and interpretation caveats.
+- [Evaluation](docs/evaluation.md): checkpoint evaluation, metrics, condition comparison, and reporting.
 
-補足:
+Japanese documentation is preserved under [docs/ja](docs/ja/README.md).
 
-- [実装メモ](IMPLEMENTATION_NOTES.md): 実装上の判断、参考文献、既知の制約。
+## Quick Start
 
-## 最短実行例
-
-詳細は各ドキュメントを参照してください。ここでは全体の流れだけを示します。
+See the documentation above for details. The minimal command sequence is:
 
 ```bash
 uv python install 3.10
@@ -77,9 +77,9 @@ uv run python scripts/train.py --config configs/mvtn_circular4.yaml
 uv run python scripts/evaluate.py --checkpoint outputs/.../checkpoints/best.ckpt --split test
 ```
 
-## 主な出力
+## Main Outputs
 
-各runは `outputs/<condition_id>/<timestamp>_seed<seed>/` 配下に保存されます。
+Each run is written under `outputs/<condition_id>/<timestamp>_seed<seed>/`.
 
 ```text
 config.yaml
@@ -95,38 +95,40 @@ camera_positions.json
 learned_camera_visualization.png
 ```
 
-`logs/` はTensorBoard用、`config.yaml` と `environment_report.json` は再現性確認用です。
-`camera_positions.json` と `learned_camera_visualization.png` は主にMVTN条件の視点学習を確認するために使います。
+`logs/` is used by TensorBoard. `config.yaml` and `environment_report.json` support reproducibility.
+`camera_positions.json` and `learned_camera_visualization.png` are mainly used to inspect learned camera
+behavior in the MVTN condition.
 
-## リポジトリ構成
+## Repository Layout
 
 ```text
-configs/                  実験YAML
-docs/                     手順と設計メモ
-scripts/                  実行CLI
+configs/                  Experiment YAML files
+docs/                     Public documentation
+scripts/                  Command-line entry points
 src/pokemon_3d_cls/
-├── assets/               アセット監査とPokeAPI cache
-├── experiments/          mesh render実験のDataset/学習/metrics
-├── mesh/                 mesh正規化とcache
-├── models/               encoder/MVCNN/MVTN/camera
-├── rendering/            GLB補助とPyTorch3D renderer
-├── config.py             設定読み込み
-├── environment.py        環境診断
-├── io.py                 JSON/YAML/CSV/JSONL
-├── paths.py              project root基準のpath管理
-└── splits.py             姿勢split
+├── assets/               Asset audit and PokeAPI cache helpers
+├── experiments/          Dataset, training, and metrics for mesh-rendered experiments
+├── mesh/                 Mesh normalization and caching
+├── models/               Encoders, MVCNN, MVTN, and camera utilities
+├── rendering/            GLB helpers and PyTorch3D renderer
+├── config.py             Config loading
+├── environment.py        Environment diagnostics
+├── io.py                 JSON/YAML/CSV/JSONL I/O
+├── paths.py              Project-root-based path handling
+└── splits.py             Pose splits
 ```
 
-## 制約
+## Public Release Notes
 
-- アセット、mesh cache、render cache、学習出力はGit管理しません。
-- ViewFormer、View-GCN、点群直接入力、retrieval、open-set、8視点以上比較は今回の実装対象外です。
-- Fixed Ring-4とMVTNではencoder、classifier、視点数、画像解像度、optimizer設定を揃え、差分を原則として視点配置だけにします。
-- Single-viewは「正面」とは呼ばず、meshの正面方向が保証されないため `single fixed view` として扱います。
+- Pokemon assets, mesh caches, render caches, and training outputs are not tracked in Git.
+- This repository documents how to obtain assets from upstream sources; it does not redistribute Pokemon assets.
+- ViewFormer, View-GCN, direct point-cloud input, retrieval, open-set recognition, and comparisons with eight or more views are out of scope for the current implementation.
+- Fixed Ring-4 and MVTN should use matched encoder, classifier, view count, image resolution, and optimizer settings so the main difference is the camera policy.
+- Single-view is described as a `single fixed view`, not a front view, because the semantic front direction of the source meshes is not guaranteed.
 
-## 参考
+## References
 
-- [Pokémon 3D assets](https://github.com/Pokemon-3D-api/assets)
+- [Pokemon 3D assets](https://github.com/Pokemon-3D-api/assets)
 - [MVCNN](https://arxiv.org/abs/1505.00880)
 - [MVCNN PyTorch reference](https://github.com/RBirkeland/MVCNN-PyTorch)
 - [MVTN](https://openaccess.thecvf.com/content/ICCV2021/html/Hamdi_MVTN_Multi-View_Transformation_Network_for_3D_Shape_Recognition_ICCV_2021_paper.html)

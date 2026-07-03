@@ -1,4 +1,4 @@
-"""分類モデルとMVTN補助API。"""
+"""Classification models and MVTN helper APIs."""
 
 from __future__ import annotations
 

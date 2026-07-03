@@ -12,6 +12,12 @@ dataset/
 illustrations/
 /models/
 
+# Local agent instructions and connector state
+AGENTS.md
+CLAUDE.md
+.agents/
+.codex/
+
 *.pt
 *.pth
 *.ckpt

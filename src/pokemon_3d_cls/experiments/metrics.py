@@ -1,4 +1,4 @@
-"""分類metricsと可視化。"""
+"""Classification metrics and visualization."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ def compute_classification_metrics(
     probabilities: np.ndarray,
     class_names: list[str],
 ) -> dict[str, object]:
-    """Top-1/Top-5/Macro-F1とper-class metricsを返す。"""
+    """Return Top-1/Top-5/Macro-F1 and per-class metrics."""
 
     predictions = probabilities.argmax(axis=1)
     top1 = float((predictions == np.asarray(labels)).mean()) if labels else 0.0
@@ -57,7 +57,7 @@ def compute_classification_metrics(
 
 
 def save_confusion_matrix_png(matrix: list[list[int]], class_names: list[str], output_path: Path) -> None:
-    """混同行列をPNG保存する。"""
+    """Save a confusion matrix as PNG."""
 
     fig, axis = plt.subplots(figsize=(max(6, len(class_names) * 0.25), max(5, len(class_names) * 0.25)))
     image = axis.imshow(np.asarray(matrix), cmap="Blues")

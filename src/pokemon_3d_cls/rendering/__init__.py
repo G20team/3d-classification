@@ -1,4 +1,4 @@
-"""GLBからシルエット画像を生成する処理。"""
+"""Utilities for generating silhouette images from GLB files."""
 
 from __future__ import annotations
 

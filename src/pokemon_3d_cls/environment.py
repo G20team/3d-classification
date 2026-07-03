@@ -1,4 +1,4 @@
-"""環境診断レポート。"""
+"""Environment diagnostic report."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from pokemon_3d_cls.rendering.pytorch3d_renderer import (
 
 
 def collect_environment_report(output_path: Path | None = None) -> dict[str, object]:
-    """Python/PyTorch/CUDA/PyTorch3D診断情報を収集する。"""
+    """Collect Python/PyTorch/CUDA/PyTorch3D diagnostic information."""
 
     report: dict[str, object] = {
         "python_version": platform.python_version(),

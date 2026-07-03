@@ -1,4 +1,4 @@
-"""黒塗りシルエットのPNG render cacheを作るCLI。"""
+"""CLI for creating a PNG render cache of filled silhouettes."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ from pokemon_3d_cls.paths import find_project_root
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="single_view/fixed_ring4向け黒塗りシルエットrender cacheを作ります。")
-    parser.add_argument("--config", required=True, help="実験設定YAML")
+    parser = argparse.ArgumentParser(description="Create a filled-silhouette render cache for single_view/fixed_ring4.")
+    parser.add_argument("--config", required=True, help="Experiment config YAML.")
     parser.add_argument("--splits", nargs="+", default=["train", "validation", "test"])
     args = parser.parse_args()
 

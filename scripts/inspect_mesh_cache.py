@@ -1,4 +1,4 @@
-"""mesh cacheの構造確認と簡易preview出力を行うCLI。"""
+"""CLI for inspecting mesh cache structure and writing simple previews."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ MAX_PREVIEW_ITEMS = 5
 
 @runtime_checkable
 class PackedMesh(Protocol):
-    """PyTorch3D Meshesのうち、このCLIで参照する最小API。"""
+    """Minimal PyTorch3D Meshes API used by this CLI."""
 
     def verts_packed(self) -> torch.Tensor: ...
 
@@ -25,7 +25,7 @@ class PackedMesh(Protocol):
 
 
 def summarize(obj: object, name: str = "root", indent: int = 0) -> None:
-    """torch.loadしたcacheの概略構造を再帰的に表示する。"""
+    """Recursively print the high-level structure of a torch-loaded cache."""
 
     prefix = " " * indent
 
@@ -47,13 +47,13 @@ def summarize(obj: object, name: str = "root", indent: int = 0) -> None:
 
 
 def get_mesh_tensors(data: object) -> tuple[torch.Tensor, torch.Tensor]:
-    """cache構造から頂点tensorとface tensorを取り出す。"""
+    """Extract vertex and face tensors from a cache structure."""
 
     # PyTorch3D Meshes
     if isinstance(data, PackedMesh):
         return data.verts_packed(), data.faces_packed()
 
-    # dict形式
+    # Dict format
     if isinstance(data, Mapping):
         vert_keys = ("verts", "vertices", "v")
         face_keys = ("faces", "triangles", "f")
@@ -64,26 +64,26 @@ def get_mesh_tensors(data: object) -> tuple[torch.Tensor, torch.Tensor]:
         if isinstance(verts, torch.Tensor) and isinstance(faces, torch.Tensor):
             return verts, faces
 
-        # 入れ子になっている場合
+        # Nested format
         for value in data.values():
             try:
                 return get_mesh_tensors(value)
             except ValueError:
                 pass
 
-    # (verts, faces) のtuple/list形式
+    # (verts, faces) tuple/list format
     if isinstance(data, (list, tuple)) and len(data) >= 2:
         if isinstance(data[0], torch.Tensor) and isinstance(data[1], torch.Tensor):
             return data[0], data[1]
 
     raise ValueError(
-        "verts / faces を検出できませんでした。"
-        "表示されたキャッシュ構造に合わせて get_mesh_tensors() を調整してください。"
+        "Could not detect verts / faces."
+        "Adjust get_mesh_tensors() to match the displayed cache structure."
     )
 
 
 def normalize_shape(verts: torch.Tensor, faces: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-    """batch次元が1の場合だけ取り除き、mesh用のshapeを検証する。"""
+    """Remove a batch dimension only when it is 1, then validate mesh shapes."""
 
     # [1, V, 3] -> [V, 3]
     if verts.ndim == 3 and verts.shape[0] == 1:
@@ -94,16 +94,16 @@ def normalize_shape(verts: torch.Tensor, faces: torch.Tensor) -> tuple[torch.Ten
         faces = faces[0]
 
     if verts.ndim != 2 or verts.shape[-1] != 3:
-        raise ValueError(f"想定外の vertices shape: {tuple(verts.shape)}")
+        raise ValueError(f"Unexpected vertices shape: {tuple(verts.shape)}")
 
     if faces.ndim != 2 or faces.shape[-1] != 3:
-        raise ValueError(f"想定外の faces shape: {tuple(faces.shape)}")
+        raise ValueError(f"Unexpected faces shape: {tuple(faces.shape)}")
 
     return verts, faces
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="mesh cache .pt の構造確認とpreview出力を行います。")
+    parser = argparse.ArgumentParser(description="Inspect a mesh cache .pt file and write preview outputs.")
     parser.add_argument("pt_path", type=Path)
     parser.add_argument("--output-root", type=Path, default=Path("mesh_preview"))
     args = parser.parse_args()
@@ -112,7 +112,7 @@ def main() -> None:
     pt_path = resolve_project_path(args.pt_path, project_root)
     output_root = ensure_directory(resolve_project_path(args.output_root, project_root))
 
-    # 信頼できる自作キャッシュにのみ weights_only=False を使ってください
+    # Use weights_only=False only for trusted caches you created.
     data = torch.load(pt_path, map_location="cpu", weights_only=False)
 
     print("=== Cache structure ===")
@@ -130,7 +130,7 @@ def main() -> None:
     print(f"bbox min: {verts_np.min(axis=0)}")
     print(f"bbox max: {verts_np.max(axis=0)}")
 
-    # PLY出力
+    # PLY output
     try:
         import trimesh
 
@@ -143,10 +143,10 @@ def main() -> None:
         mesh.export(ply_path)
         print(f"\nPLY saved: {ply_path}")
     except ImportError:
-        print("\ntrimesh が未導入のため PLY 出力をスキップしました。")
-        print("必要なら: uv add trimesh && uv sync")
+        print("\nSkipped PLY output because trimesh is not installed.")
+        print("If needed: uv add trimesh && uv sync")
 
-    # ブラウザで開けるHTML出力
+    # Browser-readable HTML output
     try:
         import plotly.graph_objects as go
 
@@ -173,8 +173,8 @@ def main() -> None:
         fig.write_html(html_path)
         print(f"HTML saved: {html_path}")
     except ImportError:
-        print("plotly が未導入のため HTML 出力をスキップしました。")
-        print("必要なら: uv add plotly && uv sync")
+        print("Skipped HTML output because plotly is not installed.")
+        print("If needed: uv add plotly && uv sync")
 
 
 if __name__ == "__main__":

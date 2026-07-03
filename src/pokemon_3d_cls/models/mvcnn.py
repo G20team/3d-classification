@@ -1,4 +1,4 @@
-"""Multi-view CNN分類器。"""
+"""Multi-view CNN classifiers."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ BackboneName = Literal["resnet18", "simple_cnn"]
 
 
 class SimpleCNNEncoder(nn.Module):
-    """テストやdebug実験向けの軽量CNN encoder。"""
+    """Lightweight CNN encoder for tests and debug experiments."""
 
     def __init__(self, *, input_channels: int, feature_dim: int) -> None:
         super().__init__()
@@ -68,7 +68,7 @@ def _pair2(value: int | tuple[int, ...], name: str) -> int | tuple[int, int]:
     if isinstance(value, int):
         return value
     if len(value) != 2:
-        msg = f"{name} はintまたは2要素tupleである必要があります。"
+        msg = f"{name} must be an int or a 2-item tuple."
         raise ValueError(msg)
     return (value[0], value[1])
 
@@ -80,7 +80,7 @@ def build_encoder(
     feature_dim: int,
     pretrained: bool,
 ) -> nn.Module:
-    """backbone名から画像encoderを構築する。"""
+    """Build an image encoder from a backbone name."""
 
     if backbone == "simple_cnn":
         return SimpleCNNEncoder(input_channels=input_channels, feature_dim=feature_dim)
@@ -91,12 +91,12 @@ def build_encoder(
             pretrained=pretrained,
         )
 
-    msg = f"未知のbackboneです: {backbone}"
+    msg = f"Unknown backbone: {backbone}"
     raise ValueError(msg)
 
 
 class MVCNN(nn.Module):
-    """複数視点画像をview-wise max poolingで集約する分類器。"""
+    """Classifier that aggregates multi-view images with view-wise max pooling."""
 
     def __init__(
         self,
@@ -110,16 +110,16 @@ class MVCNN(nn.Module):
     ) -> None:
         super().__init__()
         if num_classes <= 0:
-            msg = "num_classes は1以上である必要があります。"
+            msg = "num_classes must be at least 1."
             raise ValueError(msg)
         if input_channels <= 0:
-            msg = "input_channels は1以上である必要があります。"
+            msg = "input_channels must be at least 1."
             raise ValueError(msg)
         if feature_dim <= 0:
-            msg = "feature_dim は1以上である必要があります。"
+            msg = "feature_dim must be at least 1."
             raise ValueError(msg)
         if not 0.0 <= dropout <= 1.0:
-            msg = "dropout は0.0以上1.0以下である必要があります。"
+            msg = "dropout must be between 0.0 and 1.0."
             raise ValueError(msg)
 
         self.num_classes = num_classes
@@ -136,12 +136,12 @@ class MVCNN(nn.Module):
         )
 
     def forward(self, views: torch.Tensor) -> torch.Tensor:
-        """(B,V,C,H,W) または (B,C,H,W) の画像を分類する。"""
+        """Classify images shaped (B,V,C,H,W) or (B,C,H,W)."""
 
         if views.ndim == 4:
             views = views.unsqueeze(1)
         if views.ndim != 5:
-            msg = "views は (B,V,C,H,W) または (B,C,H,W) のTensorである必要があります。"
+            msg = "views must be a tensor shaped (B,V,C,H,W) or (B,C,H,W)."
             raise ValueError(msg)
 
         batch_size, num_views, channels, height, width = views.shape
@@ -153,7 +153,7 @@ class MVCNN(nn.Module):
 
 
 class MVCNNClassifier(MVCNN):
-    """mesh実験側で使う分類器名。実装はMVCNNと同一。"""
+    """Classifier name used by mesh experiments. Implementation is identical to MVCNN."""
 
 
 def build_model(
@@ -165,7 +165,7 @@ def build_model(
     pretrained: bool = True,
     dropout: float = 0.3,
 ) -> MVCNN:
-    """設定値からMVCNNを構築する。"""
+    """Build an MVCNN from config values."""
 
     return MVCNN(
         num_classes=num_classes,

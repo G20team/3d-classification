@@ -1,4 +1,4 @@
-"""Learned Circular MVTNの視点予測補助。"""
+"""View prediction helpers for Learned Circular MVTN."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import torch.nn as nn
 
 
 class CircularViewPredictor(nn.Module):
-    """mesh頂点から円環カメラの角度補正を予測する小さなPointNet風MLP。"""
+    """Small PointNet-style MLP that predicts circular camera angle offsets from mesh vertices."""
 
     def __init__(
         self,
@@ -20,13 +20,13 @@ class CircularViewPredictor(nn.Module):
     ) -> None:
         super().__init__()
         if num_views <= 0:
-            msg = "num_views は1以上である必要があります。"
+            msg = "num_views must be at least 1."
             raise ValueError(msg)
         if point_samples <= 0:
-            msg = "point_samples は1以上である必要があります。"
+            msg = "point_samples must be at least 1."
             raise ValueError(msg)
         if hidden_dim <= 0:
-            msg = "hidden_dim は1以上である必要があります。"
+            msg = "hidden_dim must be at least 1."
             raise ValueError(msg)
 
         self.num_views = num_views
@@ -52,10 +52,10 @@ class CircularViewPredictor(nn.Module):
         base_azimuths: torch.Tensor,
         base_elevations: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """base角度に学習オフセットを足したazimuth/elevationを返す。"""
+        """Return azimuth/elevation after adding learned offsets to base angles."""
 
         if vertices.ndim != 3 or vertices.shape[-1] != 3:
-            msg = "vertices は (B,N,3) のTensorである必要があります。"
+            msg = "vertices must be a tensor shaped (B,N,3)."
             raise ValueError(msg)
         batch_size = vertices.shape[0]
         base_azimuths = _expand_base_angles(base_azimuths, batch_size=batch_size, num_views=self.num_views)
@@ -84,13 +84,13 @@ def pack_vertices_for_mvtn(
     point_samples: int,
     device: torch.device,
 ) -> torch.Tensor:
-    """可変長頂点listをMVTN入力用の (B,point_samples,3) へ揃える。"""
+    """Convert a variable-length vertex list to (B,point_samples,3) for MVTN input."""
 
     if point_samples <= 0:
-        msg = "point_samples は1以上である必要があります。"
+        msg = "point_samples must be at least 1."
         raise ValueError(msg)
     if not vertices_list:
-        msg = "vertices_list は空にできません。"
+        msg = "vertices_list must not be empty."
         raise ValueError(msg)
 
     packed = [_sample_vertices(vertices, point_samples=point_samples, device=device) for vertices in vertices_list]
@@ -98,7 +98,7 @@ def pack_vertices_for_mvtn(
 
 
 def camera_statistics(azimuths: torch.Tensor, elevations: torch.Tensor) -> dict[str, float]:
-    """カメラ角度の分散と視点間距離を集計する。"""
+    """Summarize camera-angle variance and pairwise view distances."""
 
     azimuths, elevations = _as_angle_batch(azimuths, elevations)
     distances = _pairwise_angle_distances(azimuths, elevations)
@@ -123,10 +123,10 @@ def camera_statistics(azimuths: torch.Tensor, elevations: torch.Tensor) -> dict[
 
 
 def detect_view_collapse(azimuths: torch.Tensor, elevations: torch.Tensor, *, threshold_deg: float) -> bool:
-    """最小視点間距離が閾値未満ならview collapseとして扱う。"""
+    """Treat views as collapsed when the minimum pairwise distance is below the threshold."""
 
     if threshold_deg <= 0.0:
-        msg = "threshold_deg は0より大きい値である必要があります。"
+        msg = "threshold_deg must be greater than 0."
         raise ValueError(msg)
     azimuths, elevations = _as_angle_batch(azimuths, elevations)
     distances = _pairwise_angle_distances(azimuths, elevations)
@@ -137,10 +137,10 @@ def detect_view_collapse(azimuths: torch.Tensor, elevations: torch.Tensor, *, th
 
 def _sample_vertices(vertices: torch.Tensor, *, point_samples: int, device: torch.device) -> torch.Tensor:
     if vertices.ndim != 2 or vertices.shape[-1] != 3:
-        msg = "各verticesは (N,3) のTensorである必要があります。"
+        msg = "Each vertices tensor must have shape (N,3)."
         raise ValueError(msg)
     if vertices.shape[0] == 0:
-        msg = "空のverticesはMVTNへ入力できません。"
+        msg = "Empty vertices cannot be passed to MVTN."
         raise ValueError(msg)
 
     vertices = vertices.to(device=device, dtype=torch.float32)
@@ -153,16 +153,16 @@ def _sample_vertices(vertices: torch.Tensor, *, point_samples: int, device: torc
 def _expand_base_angles(angles: torch.Tensor, *, batch_size: int, num_views: int) -> torch.Tensor:
     if angles.ndim == 1:
         if angles.shape[0] != num_views:
-            msg = "base angleの視点数がnum_viewsと一致していません。"
+            msg = "The base-angle view count does not match num_views."
             raise ValueError(msg)
         return angles.unsqueeze(0).expand(batch_size, -1)
     if angles.ndim == 2:
         if angles.shape != (batch_size, num_views):
-            msg = "batch付きbase angleのshapeが (B,V) と一致していません。"
+            msg = "Batched base-angle shape does not match (B,V)."
             raise ValueError(msg)
         return angles
 
-    msg = "base angleは (V) または (B,V) のTensorである必要があります。"
+    msg = "base angle must be a tensor shaped (V) or (B,V)."
     raise ValueError(msg)
 
 
@@ -172,7 +172,7 @@ def _as_angle_batch(azimuths: torch.Tensor, elevations: torch.Tensor) -> tuple[t
     if elevations.ndim == 1:
         elevations = elevations.unsqueeze(0)
     if azimuths.shape != elevations.shape or azimuths.ndim != 2:
-        msg = "azimuths/elevations は同じshapeの (V) または (B,V) Tensorである必要があります。"
+        msg = "azimuths/elevations must be tensors with the same shape, either (V) or (B,V)."
         raise ValueError(msg)
     return azimuths, elevations
 

@@ -1,88 +1,73 @@
 # Fixed Ring-4 MVCNN
 
-Fixed Ring-4 MVCNNは、円環状に固定した4視点をレンダリングし、共有encoderで抽出した特徴をview-wise max poolingで統合する条件です。
+Fixed Ring-4 MVCNN renders four circularly spaced views and aggregates view features with view-wise max
+pooling. It is the main fixed-camera baseline for the MVTN condition.
 
-## 目的
+## Purpose
 
-この条件はMVTNと同じ4視点数を使う固定視点の基準です。
-MVTNの性能を評価するときは、Single-viewではなくこの条件との比較が中心になります。
+This condition estimates the value of observing the same mesh from multiple directions while keeping camera
+placement fixed. It separates the benefit of four views from the additional benefit of learned view
+selection.
 
-## 視点配置
+## Camera Setup
 
-既定のazimuthは次の4方向です。
+The base azimuths are arranged in a ring:
 
 ```text
 0, 90, 180, 270 degrees
 ```
 
-elevationは0度です。
-実際の学習データでは、姿勢split由来のyaw/elevation offsetが加わります。
+The base elevation is `0` degrees. Pose-split yaw/elevation offsets are applied on top of this base setup
+during training and evaluation.
 
-## Config
+## Configs
 
-主なconfig:
+Main config:
 
 ```text
-configs/debug_fixed_ring4.yaml
 configs/fixed_ring4.yaml
 ```
 
-重要な設定:
+Debug config:
 
-- `model.experiment_kind: fixed_ring4`
-- `model.num_views: 4`
-- `model.backbone: resnet18`
-- `rendering.image_size: 224`
-- `training.batch_size: 4`
-- `training.epochs: 30`
+```text
+configs/debug_fixed_ring4.yaml
+```
 
-MVTN条件と比較しやすいように、backbone、feature_dim、dropout、optimizer設定は揃えます。
+Keep the backbone, feature dimension, dropout, and optimizer settings aligned with the MVTN config.
 
-## 実行手順
+## Run
 
-debug subset:
+Debug:
 
 ```bash
 uv run python scripts/train.py --config configs/debug_fixed_ring4.yaml
 ```
 
-本実験:
+Full run:
 
 ```bash
 uv run python scripts/train.py --config configs/fixed_ring4.yaml
 ```
 
-学習が完了すると、標準出力にrun directoryが表示されます。
-
-```text
-training finished: outputs/fixed_ring4/<timestamp>_seed0
-```
-
-## 評価
+## Evaluate
 
 ```bash
 uv run python scripts/evaluate.py \
-  --checkpoint outputs/fixed_ring4/<timestamp>_seed0/checkpoints/best.ckpt \
+  --checkpoint outputs/fixed_ring4/.../checkpoints/best.ckpt \
   --split test
 ```
 
-出力先:
+## What To Check
 
-```text
-outputs/fixed_ring4/<timestamp>_seed0/eval_test/
-```
+- Whether Top-1 accuracy and Macro-F1 improve over Single-view.
+- Whether classes that were weak in Single-view improve with four views.
+- Whether confusion between similarly shaped classes decreases.
+- Whether all comparison settings match the MVTN condition.
 
-## 確認ポイント
+## Comparison With MVTN
 
-- Single-viewよりTop-1 AccuracyやMacro-F1が改善しているか。
-- per-class metricsで、単視点では苦手だったクラスが改善しているか。
-- confusion matrixで、形状が似たクラスの混同が減っているか。
-- MVTNと比較するとき、画像解像度、視点数、backbone、optimizer、splitが揃っているか。
-
-## MVTNとの比較
-
-Fixed Ring-4はMVTNの初期配置と同じ思想の固定カメラ条件です。
-MVTNがFixed Ring-4を上回る場合、単に4視点を使った効果ではなく、meshごとに視点を調整した効果の候補として解釈できます。
-
-ただし、性能差が小さい場合は、MVTNの学習視点が固定配置から十分に動いているか、view collapseが起きていないか、
-`camera_positions.json` と `learned_camera_visualization.png` を確認します。
+Fixed Ring-4 uses the same camera layout that initializes Learned Circular-4 MVTN. If MVTN outperforms this
+condition, the difference is a candidate signal for the value of mesh-dependent camera adjustment. If the
+difference is small, inspect whether MVTN camera offsets moved meaningfully and whether view collapse
+occurred.

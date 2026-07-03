@@ -1,4 +1,4 @@
-"""GLB解析とシルエットレンダリング。"""
+"""GLB parsing and silhouette rendering."""
 
 from __future__ import annotations
 
@@ -34,17 +34,17 @@ class _DecodedDraco(Protocol):
 
 class _DracoDecoder(Protocol):
     def decode(self, encoded: bytes) -> _DecodedDraco:
-        """DracoPy.decode と同じ形の最小Protocol。"""
+        """Minimal Protocol matching the shape of DracoPy.decode."""
         ...
 
 
 class _RgbaCanvas(Protocol):
     def draw(self) -> object:
-        """matplotlib canvasを描画する。"""
+        """Draw the matplotlib canvas."""
         ...
 
     def buffer_rgba(self) -> memoryview:
-        """RGBA bufferを返す。"""
+        """Return the RGBA buffer."""
         ...
 
 
@@ -65,20 +65,20 @@ except ModuleNotFoundError:
 
 
 def parse_glb(path: str | Path) -> tuple[JsonDict, bytes]:
-    """GLBバイナリをJSON dictとBIN blobに分解する。"""
+    """Split a GLB binary into a JSON dictionary and BIN blob."""
 
     glb_path = Path(path)
     data = glb_path.read_bytes()
     if len(data) < 12:
-        msg = f"{glb_path}: GLBヘッダが短すぎます。"
+        msg = f"{glb_path}: GLB header is too short."
         raise ValueError(msg)
 
     magic, _version, length = struct.unpack("<III", data[:12])
     if magic != 0x46546C67:
-        msg = f"{glb_path}: glTFバイナリではありません。"
+        msg = f"{glb_path}: File is not a glTF binary."
         raise ValueError(msg)
     if length > len(data):
-        msg = f"{glb_path}: GLB lengthがファイルサイズを超えています。"
+        msg = f"{glb_path}: GLB length exceeds the file size."
         raise ValueError(msg)
 
     offset = 12
@@ -90,7 +90,7 @@ def parse_glb(path: str | Path) -> tuple[JsonDict, bytes]:
         if chunk_type == 0x4E4F534A:
             raw_json = json.loads(chunk.decode("utf-8"))
             if not isinstance(raw_json, dict):
-                msg = f"{glb_path}: JSONチャンクのrootがobjectではありません。"
+                msg = f"{glb_path}: JSON chunk root is not an object."
                 raise ValueError(msg)
             gltf = cast("JsonDict", raw_json)
         elif chunk_type == 0x004E4942:
@@ -98,13 +98,13 @@ def parse_glb(path: str | Path) -> tuple[JsonDict, bytes]:
         offset += 8 + chunk_length
 
     if gltf is None:
-        msg = f"{glb_path}: JSONチャンクがありません。"
+        msg = f"{glb_path}: JSON chunk is missing."
         raise ValueError(msg)
     return gltf, bin_blob
 
 
 def load_mesh(path: str | Path) -> tuple[np.ndarray, np.ndarray]:
-    """GLB内のmesh instanceを合成し、頂点Vと三角形Fを返す。"""
+    """Combine mesh instances in a GLB and return vertices V and triangle faces F."""
 
     gltf, bin_blob = parse_glb(path)
     meshes = _list_field(gltf, "meshes")
@@ -127,13 +127,13 @@ def load_mesh(path: str | Path) -> tuple[np.ndarray, np.ndarray]:
             vertex_offset += len(transformed_vertices)
 
     if not all_vertices:
-        msg = f"{path}: メッシュが見つかりません。"
+        msg = f"{path}: No mesh was found."
         raise ValueError(msg)
     return np.vstack(all_vertices), np.vstack(all_faces)
 
 
 def normalize_vertices(vertices: np.ndarray, up: UpAxis = "y") -> np.ndarray:
-    """中心を原点に移動し、最大半径1に正規化する。"""
+    """Center vertices at the origin and normalize by maximum radius 1."""
 
     normalized = vertices.copy()
     if up == "z":
@@ -154,10 +154,10 @@ def viewpoints(
     base_azimuth: float = 0.0,
     rng: np.random.Generator | None = None,
 ) -> list[tuple[float, float]]:
-    """(azimuth_deg, elevation_deg) のリストを返す。"""
+    """Return a list of (azimuth_deg, elevation_deg) pairs."""
 
     if count <= 0:
-        msg = "viewpoint数は1以上である必要があります。"
+        msg = "viewpoint count must be at least 1."
         raise ValueError(msg)
     if rng is None:
         rng = np.random.default_rng(0)
@@ -194,7 +194,7 @@ def render_silhouette(
     pad: float = 1.25,
     line_width: float = 0.4,
 ) -> np.ndarray:
-    """1視点のシルエット画像をuint8グレースケール配列として返す。"""
+    """Return a one-view silhouette image as a uint8 grayscale array."""
 
     rotation = _rotation_x(np.radians(elevation)) @ _rotation_y(np.radians(azimuth))
     projected = vertices @ rotation.T
@@ -224,14 +224,14 @@ def render_silhouette(
 
 
 def make_label(path: str | Path, mode: LabelMode) -> str:
-    """GLBファイル名からラベルを作る。"""
+    """Create a label from the GLB file name."""
 
     stem = Path(path).stem
     if mode == "stem":
         return stem
     if mode == "species":
         return stem.split("-")[0].split("_")[0]
-    msg = f"未知のlabel modeです: {mode}"
+    msg = f"Unknown label mode: {mode}"
     raise ValueError(msg)
 
 
@@ -248,14 +248,14 @@ def _decode_primitive(
     attributes = _mapping_field(primitive, "attributes")
     vertices = _read_accessor(gltf, bin_blob, _int_field(attributes, "POSITION")).astype(np.float64)
     if vertices.ndim != 2 or vertices.shape[1] != 3:
-        msg = "POSITION accessor は (N, 3) である必要があります。"
+        msg = "POSITION accessor must have shape (N, 3)."
         raise ValueError(msg)
 
     if "indices" in primitive:
         faces = _read_accessor(gltf, bin_blob, _int_field(primitive, "indices")).astype(np.int64).reshape(-1, 3)
     else:
         if len(vertices) % 3 != 0:
-            msg = "indicesなしprimitiveの頂点数が3で割り切れません。"
+            msg = "Primitive without indices has a vertex count that is not divisible by 3."
             raise ValueError(msg)
         faces = np.arange(len(vertices), dtype=np.int64).reshape(-1, 3)
     return vertices, faces
@@ -263,7 +263,7 @@ def _decode_primitive(
 
 def _decode_draco(encoded: bytes) -> tuple[np.ndarray, np.ndarray]:
     if _DRACO_MODULE is None:
-        msg = "Draco圧縮モデルですが DracoPy がありません。`uv sync` 後に再実行してください。"
+        msg = "This is a Draco-compressed model, but DracoPy is unavailable. Run again after `uv sync`."
         raise RuntimeError(msg)
     decoder = cast("_DracoDecoder", _DRACO_MODULE)
     decoded = decoder.decode(encoded)
@@ -275,16 +275,16 @@ def _decode_draco(encoded: bytes) -> tuple[np.ndarray, np.ndarray]:
 def _read_accessor(gltf: Mapping[str, object], bin_blob: bytes, accessor_index: int) -> np.ndarray:
     accessor = _dict_at(_list_field(gltf, "accessors"), accessor_index, "accessor")
     if "bufferView" not in accessor:
-        msg = f"bufferViewを持たないaccessorには未対応です: index={accessor_index}"
+        msg = f"Accessors without bufferView are not supported: index={accessor_index}"
         raise ValueError(msg)
     buffer_view = _dict_at(_list_field(gltf, "bufferViews"), _int_field(accessor, "bufferView"), "bufferView")
     component_type = _int_field(accessor, "componentType")
     if component_type not in _COMPONENT_DTYPE:
-        msg = f"未対応のcomponentTypeです: {component_type}"
+        msg = f"Unsupported componentType: {component_type}"
         raise ValueError(msg)
     accessor_type = _str_field(accessor, "type")
     if accessor_type not in _TYPE_NCOMP:
-        msg = f"未対応のaccessor typeです: {accessor_type}"
+        msg = f"Unsupported accessor type: {accessor_type}"
         raise ValueError(msg)
 
     dtype = np.dtype(_COMPONENT_DTYPE[component_type])
@@ -412,21 +412,21 @@ def _list_field(mapping: Mapping[str, object], key: str, *, required: bool = Tru
     if value is None and not required:
         return []
     if not isinstance(value, list):
-        msg = f"{key} はlistである必要があります。"
+        msg = f"{key} must be a list."
         raise ValueError(msg)
     return value
 
 
 def _dict_at(items: Sequence[object], index: int, name: str) -> Mapping[str, object]:
     if index < 0 or index >= len(items):
-        msg = f"{name} index が範囲外です: {index}"
+        msg = f"{name}  index is out of range: {index}"
         raise ValueError(msg)
     return _as_mapping(items[index], name)
 
 
 def _as_mapping(value: object, name: str) -> Mapping[str, object]:
     if not isinstance(value, Mapping):
-        msg = f"{name} はmappingである必要があります。"
+        msg = f"{name} must be a mapping."
         raise ValueError(msg)
     return cast("Mapping[str, object]", value)
 
@@ -438,7 +438,7 @@ def _mapping_field(mapping: Mapping[str, object], key: str) -> Mapping[str, obje
 def _int_field(mapping: Mapping[str, object], key: str) -> int:
     value = mapping.get(key)
     if isinstance(value, bool) or not isinstance(value, int):
-        msg = f"{key} は整数である必要があります。"
+        msg = f"{key} must be an integer."
         raise ValueError(msg)
     return value
 
@@ -446,7 +446,7 @@ def _int_field(mapping: Mapping[str, object], key: str) -> int:
 def _optional_int(mapping: Mapping[str, object], key: str, default: int) -> int:
     value = mapping.get(key, default)
     if isinstance(value, bool) or not isinstance(value, int):
-        msg = f"{key} は整数である必要があります。"
+        msg = f"{key} must be an integer."
         raise ValueError(msg)
     return value
 
@@ -454,7 +454,7 @@ def _optional_int(mapping: Mapping[str, object], key: str, default: int) -> int:
 def _str_field(mapping: Mapping[str, object], key: str) -> str:
     value = mapping.get(key)
     if not isinstance(value, str):
-        msg = f"{key} は文字列である必要があります。"
+        msg = f"{key} must be a string."
         raise ValueError(msg)
     return value
 
@@ -462,12 +462,12 @@ def _str_field(mapping: Mapping[str, object], key: str) -> str:
 def _optional_int_sequence(mapping: Mapping[str, object], key: str) -> list[int]:
     value = mapping.get(key, [])
     if not isinstance(value, Sequence) or isinstance(value, str):
-        msg = f"{key} は整数listである必要があります。"
+        msg = f"{key} must be a list of integers."
         raise ValueError(msg)
     result: list[int] = []
     for item in value:
         if isinstance(item, bool) or not isinstance(item, int):
-            msg = f"{key} は整数listである必要があります。"
+            msg = f"{key} must be a list of integers."
             raise ValueError(msg)
         result.append(item)
     return result
@@ -475,12 +475,12 @@ def _optional_int_sequence(mapping: Mapping[str, object], key: str) -> list[int]
 
 def _number_sequence(value: object, name: str, *, expected_length: int) -> list[float]:
     if not isinstance(value, Sequence) or isinstance(value, str) or len(value) != expected_length:
-        msg = f"{name} は長さ {expected_length} の数値listである必要があります。"
+        msg = f"{name} must be a numeric list of length {expected_length}."
         raise ValueError(msg)
     result: list[float] = []
     for item in value:
         if isinstance(item, bool) or not isinstance(item, int | float):
-            msg = f"{name} は数値listである必要があります。"
+            msg = f"{name} must be a list of numbers."
             raise ValueError(msg)
         result.append(float(item))
     return result

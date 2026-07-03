@@ -1,4 +1,4 @@
-"""分類モデルの評価処理。"""
+"""Evaluation utilities for classification models."""
 
 from __future__ import annotations
 
@@ -13,13 +13,13 @@ from pokemon_3d_cls.models import MVCNN
 
 @dataclass(frozen=True)
 class EvaluationResult:
-    """評価結果。"""
+    """Evaluation result."""
 
     accuracy: float
     confusion_matrix: torch.Tensor
 
     def to_metrics(self) -> dict[str, object]:
-        """JSON保存しやすいdictへ変換する。"""
+        """Convert to a JSON-friendly dictionary."""
 
         return {
             "accuracy": self.accuracy,
@@ -35,7 +35,7 @@ def evaluate_model(
     num_classes: int,
     progress_desc: str | None = None,
 ) -> EvaluationResult:
-    """Top-1精度と混同行列を計算する。"""
+    """Compute Top-1 accuracy and a confusion matrix."""
 
     model.eval()
     correct = 0
@@ -59,7 +59,7 @@ def evaluate_model(
 
 
 def invert_label_map(label_map: dict[str, int]) -> dict[int, str]:
-    """ラベルmapを index -> 個体ID へ反転する。"""
+    """Invert a label map from index to individual ID."""
 
     return {index: individual_id for individual_id, index in label_map.items()}
 
@@ -70,7 +70,7 @@ def topk_from_logits(
     label_map: dict[str, int],
     top_k: int = 3,
 ) -> list[tuple[str, float]]:
-    """logitsからTop-Kラベルと確信度を取り出す。"""
+    """Extract Top-K labels and confidences from logits."""
 
     inverse_map = invert_label_map(label_map)
     probabilities = torch.softmax(logits, dim=1)
@@ -79,6 +79,6 @@ def topk_from_logits(
 
 
 def summarize_epoch_metrics(rows: Sequence[dict[str, float]]) -> dict[str, object]:
-    """epochごとのmetrics一覧をJSON保存用にまとめる。"""
+    """Format per-epoch metrics for JSON serialization."""
 
     return {"epochs": list(rows)}

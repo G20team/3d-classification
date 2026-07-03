@@ -1,4 +1,4 @@
-"""PyTorch3Dによる固定・微分可能レンダリング。"""
+"""Fixed and differentiable rendering with PyTorch3D."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import torch
 
 @dataclass(frozen=True)
 class RendererSettings:
-    """PyTorch3D renderer設定。"""
+    """PyTorch3D renderer settings."""
 
     image_size: int = 224
     camera_distance: float = 2.7
@@ -22,17 +22,17 @@ class RendererSettings:
 
 
 def is_pytorch3d_available() -> bool:
-    """PyTorch3Dがimport可能かを返す。"""
+    """Return whether PyTorch3D can be imported."""
 
     return importlib.util.find_spec("pytorch3d") is not None
 
 
 class PyTorch3DRenderer:
-    """PyTorch3D MeshRendererの薄いラッパー。"""
+    """Thin wrapper around PyTorch3D MeshRenderer."""
 
     def __init__(self, settings: RendererSettings, *, device: torch.device) -> None:
         if not is_pytorch3d_available():
-            msg = "PyTorch3Dが見つかりません。`uv sync --extra render` などで導入してください。"
+            msg = "PyTorch3D was not found. Install it with a compatible wheel or source build."
             raise RuntimeError(msg)
         self.settings = settings
         self.device = device
@@ -47,7 +47,7 @@ class PyTorch3DRenderer:
         azimuths: torch.Tensor,
         elevations: torch.Tensor,
     ) -> torch.Tensor:
-        """可変長mesh batchを (B,V,3,H,W) のRGB画像へrenderする。"""
+        """Render a variable-length mesh batch into RGB images shaped (B,V,3,H,W)."""
 
         if azimuths.ndim == 1:
             azimuths = azimuths.unsqueeze(0).expand(len(vertices_list), -1)
@@ -55,7 +55,7 @@ class PyTorch3DRenderer:
             elevations = elevations.unsqueeze(0).expand(len(vertices_list), -1)
         batch_size, num_views = azimuths.shape
         if batch_size != len(vertices_list) or batch_size != len(faces_list):
-            msg = "mesh数とcamera角度batch sizeが一致していません。"
+            msg = "The number of meshes does not match the camera-angle batch size."
             raise ValueError(msg)
 
         verts_flat: list[torch.Tensor] = []
@@ -120,7 +120,7 @@ class PyTorch3DRenderer:
 
 
 def build_tetrahedron() -> tuple[torch.Tensor, torch.Tensor]:
-    """環境診断用の最小meshを返す。"""
+    """Return a minimal mesh for environment diagnostics."""
 
     vertices = torch.tensor(
         [

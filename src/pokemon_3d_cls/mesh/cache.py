@@ -1,4 +1,4 @@
-"""正規化済みmesh cacheの作成。"""
+"""Creation of normalized mesh caches."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from pokemon_3d_cls.paths import ensure_directory
 
 @dataclass(frozen=True)
 class MeshCacheRecord:
-    """mesh cacheのmanifest行。"""
+    """Manifest row for a mesh cache."""
 
     asset_path: str
     pokemon_id: int
@@ -33,7 +33,7 @@ class MeshCacheRecord:
 
 
 def prepare_mesh_cache(*, manifest_path: Path, output_root: Path) -> list[MeshCacheRecord]:
-    """selected_regular.jsonlから正規化済みmesh cacheを作成する。"""
+    """Create normalized mesh caches from selected_regular.jsonl."""
 
     rows = read_jsonl(manifest_path)
     ensure_directory(output_root)
@@ -96,7 +96,7 @@ def _optional_int(row: dict[str, object], key: str) -> int | None:
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, int | str):
-        msg = f"{key} は整数に変換できる値である必要があります。"
+        msg = f"{key} must be convertible to an integer."
         raise ValueError(msg)
     return int(value)
 
@@ -104,6 +104,6 @@ def _optional_int(row: dict[str, object], key: str) -> int | None:
 def _required_int(row: dict[str, object], key: str) -> int:
     value = _optional_int(row, key)
     if value is None:
-        msg = f"{key} は必須です。"
+        msg = f"{key}  is required."
         raise ValueError(msg)
     return value

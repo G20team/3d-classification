@@ -37,14 +37,14 @@ def test_multiview_dataset_split_and_label_map(tmp_path: Path) -> None:
 
 
 def test_multiview_dataset_rejects_empty_root(tmp_path: Path) -> None:
-    with pytest.raises(DatasetError, match="個体ディレクトリ"):
+    with pytest.raises(DatasetError, match="individual directories"):
         MultiViewDataset(tmp_path, split="train")
 
 
 def test_multiview_dataset_rejects_view_count_mismatch(tmp_path: Path) -> None:
     _write_dataset(tmp_path, individual_ids=["1"], views=3)
 
-    with pytest.raises(DatasetError, match="view数"):
+    with pytest.raises(DatasetError, match="view count"):
         MultiViewDataset(tmp_path, split="train", expected_num_views=4)
 
 

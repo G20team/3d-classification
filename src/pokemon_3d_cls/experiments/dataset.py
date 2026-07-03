@@ -1,4 +1,4 @@
-"""mesh cacheと姿勢splitから作るDataset。"""
+"""Datasets built from mesh caches and pose splits."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from pokemon_3d_cls.splits import load_pose_splits
 
 @dataclass(frozen=True)
 class MeshSample:
-    """1つのmesh + 姿勢条件サンプル。"""
+    """One mesh plus pose-condition sample."""
 
     mesh_cache_path: Path
     label: int
@@ -30,7 +30,7 @@ class MeshSample:
 
 @dataclass(frozen=True)
 class SilhouetteSample:
-    """1つのポケモン + 姿勢条件シルエットサンプル。"""
+    """One Pokemon plus pose-condition silhouette sample."""
 
     label: int
     pokemon_id: int
@@ -40,7 +40,7 @@ class SilhouetteSample:
 
 
 class MeshPoseDataset(Dataset):
-    """ポケモンIDは全split共通、姿勢条件だけをsplitするDataset。"""
+    """Dataset where Pokemon IDs are shared across splits and only pose conditions are split."""
 
     def __init__(
         self,
@@ -57,14 +57,14 @@ class MeshPoseDataset(Dataset):
         if class_limit is not None:
             rows = rows[:class_limit]
         if not rows:
-            msg = f"manifestに採用クラスがありません: {manifest_path}"
+            msg = f"Manifest has no selected classes: {manifest_path}"
             raise ValueError(msg)
 
         self.label_map = {_required_int(row, "pokemon_id"): index for index, row in enumerate(rows)}
         self.class_names = [str(row["pokemon_name"]) for row in rows]
         pose_splits = load_pose_splits(splits_path)
         if split not in pose_splits:
-            msg = f"splitが見つかりません: {split}"
+            msg = f"Split was not found: {split}"
             raise ValueError(msg)
         conditions = pose_splits[split]
 
@@ -74,7 +74,7 @@ class MeshPoseDataset(Dataset):
             pokemon_name = _required_str(row, "pokemon_name")
             mesh_cache_path = _mesh_cache_path(row, mesh_cache_root)
             if not mesh_cache_path.is_file():
-                msg = f"mesh cacheが見つかりません: {mesh_cache_path}"
+                msg = f"Mesh cache was not found: {mesh_cache_path}"
                 raise FileNotFoundError(msg)
             for condition in conditions:
                 self.samples.append(
@@ -106,7 +106,7 @@ class MeshPoseDataset(Dataset):
 
 
 class SilhouettePoseDataset(Dataset):
-    """render cache済み黒塗りシルエットPNGから作るDataset。"""
+    """Dataset built from cached filled-silhouette PNG renders."""
 
     def __init__(
         self,
@@ -127,14 +127,14 @@ class SilhouettePoseDataset(Dataset):
         if class_limit is not None:
             rows = rows[:class_limit]
         if not rows:
-            msg = f"manifestに採用クラスがありません: {manifest_path}"
+            msg = f"Manifest has no selected classes: {manifest_path}"
             raise ValueError(msg)
 
         self.label_map = {_required_int(row, "pokemon_id"): index for index, row in enumerate(rows)}
         self.class_names = [str(row["pokemon_name"]) for row in rows]
         pose_splits = load_pose_splits(splits_path)
         if split not in pose_splits:
-            msg = f"splitが見つかりません: {split}"
+            msg = f"Split was not found: {split}"
             raise ValueError(msg)
         conditions = pose_splits[split]
 
@@ -169,7 +169,7 @@ class SilhouettePoseDataset(Dataset):
 
 
 def collate_mesh_samples(rows: list[dict[str, object]]) -> dict[str, object]:
-    """可変長meshをlistのまま保つcollate_fn。"""
+    """collate_fn that keeps variable-length meshes as lists."""
 
     return {
         "vertices": [cast("torch.Tensor", row["vertices"]) for row in rows],
@@ -186,7 +186,7 @@ def collate_mesh_samples(rows: list[dict[str, object]]) -> dict[str, object]:
 
 
 def collate_silhouette_samples(rows: list[dict[str, object]]) -> dict[str, object]:
-    """batch方向にシルエット画像をstackするcollate_fn。"""
+    """collate_fn that stacks silhouette images along the batch dimension."""
 
     return {
         "images": torch.stack([cast("torch.Tensor", row["images"]) for row in rows], dim=0),
@@ -202,7 +202,7 @@ def collate_silhouette_samples(rows: list[dict[str, object]]) -> dict[str, objec
 
 
 def _load_cached_views(split_dir: Path, index: int, num_views: int) -> torch.Tensor:
-    """render cache済みPNGを (V,1,H,W) のfloat32 [0,1] tensorとして読む。"""
+    """Read cached PNG renders as float32 [0,1] tensors shaped (V,1,H,W)."""
 
     views = []
     for view_index in range(num_views):
@@ -226,7 +226,7 @@ def _mesh_cache_path(row: dict[str, object], mesh_cache_root: Path) -> Path:
 def _required_int(row: Mapping[str, object], key: str) -> int:
     value = row.get(key)
     if isinstance(value, bool) or not isinstance(value, int | str):
-        msg = f"{key} は整数に変換できる値である必要があります。"
+        msg = f"{key} must be convertible to an integer."
         raise ValueError(msg)
     return int(value)
 
@@ -234,7 +234,7 @@ def _required_int(row: Mapping[str, object], key: str) -> int:
 def _required_float(row: Mapping[str, object], key: str) -> float:
     value = row.get(key)
     if isinstance(value, bool) or not isinstance(value, int | float | str):
-        msg = f"{key} は数値に変換できる値である必要があります。"
+        msg = f"{key} must be convertible to a number."
         raise ValueError(msg)
     return float(value)
 
@@ -242,6 +242,6 @@ def _required_float(row: Mapping[str, object], key: str) -> float:
 def _required_str(row: Mapping[str, object], key: str) -> str:
     value = row.get(key)
     if not isinstance(value, str) or not value:
-        msg = f"{key} は空でない文字列である必要があります。"
+        msg = f"{key} must be a non-empty string."
         raise ValueError(msg)
     return value

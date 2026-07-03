@@ -1,4 +1,4 @@
-"""GLBからシルエットデータセットを生成するパイプライン。"""
+"""Pipeline for generating silhouette datasets from GLB files."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from pokemon_3d_cls.rendering.glb import load_mesh, make_label, normalize_vertic
 
 @dataclass(frozen=True)
 class GenerationSummary:
-    """シルエット生成結果の要約。"""
+    """Summary of silhouette generation results."""
 
     output_dir: Path
     manifest_path: Path
@@ -29,7 +29,7 @@ class GenerationSummary:
 
 
 def build_silhouette_dataset(config: GenerationConfig, project_root: Path) -> GenerationSummary:
-    """設定に従ってGLBからシルエット画像データセットを生成する。"""
+    """Generate a silhouette image dataset from GLB files according to config."""
 
     input_path = resolve_project_path(config.input.path, project_root)
     output_dir = ensure_directory(resolve_project_path(config.output.dataset_root, project_root))
@@ -86,7 +86,7 @@ def build_silhouette_dataset(config: GenerationConfig, project_root: Path) -> Ge
 
     if models_ok == 0:
         detail = "\n".join(failures[:5])
-        msg = f"シルエット生成に成功したGLBがありません。\n{detail}"
+        msg = f"No GLB files were successfully converted to silhouettes.\n{detail}"
         raise RuntimeError(msg)
 
     write_csv_rows(
@@ -105,7 +105,7 @@ def build_silhouette_dataset(config: GenerationConfig, project_root: Path) -> Ge
 
 
 def find_glb_files(input_path: Path) -> list[Path]:
-    """GLBファイルまたはGLBを含むディレクトリから入力一覧を作る。"""
+    """Build input paths from a GLB file or a directory containing GLB files."""
 
     if input_path.is_file() and input_path.suffix.lower() == ".glb":
         return [input_path]
@@ -113,7 +113,7 @@ def find_glb_files(input_path: Path) -> list[Path]:
         files = sorted(input_path.rglob("*.glb"), key=natural_sort_key)
         if files:
             return files
-    msg = f".glb が見つかりません: {input_path}"
+    msg = f"No .glb files found: {input_path}"
     raise FileNotFoundError(msg)
 
 

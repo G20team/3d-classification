@@ -1,4 +1,4 @@
-"""PyTorch3D互換mesh cacheのための正規化。"""
+"""Normalization for PyTorch3D-compatible mesh caches."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import trimesh
 
 @dataclass(frozen=True)
 class NormalizedMesh:
-    """正規化済みmesh。"""
+    """Normalized mesh."""
 
     vertices: torch.Tensor
     faces: torch.Tensor
@@ -20,7 +20,7 @@ class NormalizedMesh:
 
 
 def normalize_trimesh(mesh: trimesh.Trimesh) -> NormalizedMesh:
-    """bbox中心化とunit sphere相当のscale正規化を行う。"""
+    """Center by bounding box and scale to a unit-sphere-like range."""
 
     mesh = mesh.copy()
     mesh.remove_unreferenced_vertices()
@@ -30,10 +30,10 @@ def normalize_trimesh(mesh: trimesh.Trimesh) -> NormalizedMesh:
     vertices = np.asarray(mesh.vertices, dtype=np.float32)
     faces = np.asarray(mesh.faces, dtype=np.int64)
     if vertices.size == 0 or faces.size == 0:
-        msg = "正規化対象meshが空です。"
+        msg = "Mesh to normalize is empty."
         raise ValueError(msg)
     if not np.isfinite(vertices).all():
-        msg = "mesh頂点にNaN/Infが含まれています。"
+        msg = "Mesh vertices contain NaN/Inf."
         raise ValueError(msg)
 
     min_bounds = vertices.min(axis=0)
@@ -42,7 +42,7 @@ def normalize_trimesh(mesh: trimesh.Trimesh) -> NormalizedMesh:
     centered = vertices - center
     radius = float(np.linalg.norm(centered, axis=1).max())
     if radius <= 0:
-        msg = "mesh scaleが0です。"
+        msg = "Mesh scale is zero."
         raise ValueError(msg)
     normalized = centered / radius
     return NormalizedMesh(

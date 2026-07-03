@@ -1,4 +1,4 @@
-"""mesh cacheから黒塗りシルエットのPNG render cacheを作る。"""
+"""Create a PNG render cache of filled silhouettes from mesh caches."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from pokemon_3d_cls.splits import load_pose_splits
 
 
 def build_render_cache(config: MeshExperimentConfig, project_root: Path, *, splits: list[str]) -> Path:
-    """指定splitについて、mesh cacheから1回だけレンダリングしてPNGへ保存する。"""
+    """Render each selected split once from mesh caches and save PNG files."""
 
     manifest_path = resolve_project_path(config.data.manifest_path, project_root)
     mesh_cache_root = resolve_project_path(config.data.mesh_cache_root, project_root)
@@ -31,7 +31,7 @@ def build_render_cache(config: MeshExperimentConfig, project_root: Path, *, spli
     if config.data.class_limit is not None:
         rows = rows[: config.data.class_limit]
     if not rows:
-        msg = f"manifestに採用クラスがありません: {manifest_path}"
+        msg = f"Manifest has no selected classes: {manifest_path}"
         raise ValueError(msg)
 
     pose_splits = load_pose_splits(splits_path)
@@ -41,7 +41,7 @@ def build_render_cache(config: MeshExperimentConfig, project_root: Path, *, spli
 
     for split in splits:
         if split not in pose_splits:
-            msg = f"splitが見つかりません: {split}"
+            msg = f"Split was not found: {split}"
             raise ValueError(msg)
         conditions = pose_splits[split]
         split_dir = ensure_directory(cache_root / split)
@@ -83,7 +83,7 @@ def _mesh_cache_path(row: Mapping[str, object], mesh_cache_root: Path) -> Path:
 def _required_int(row: Mapping[str, object], key: str) -> int:
     value = row.get(key)
     if isinstance(value, bool) or not isinstance(value, int | str):
-        msg = f"{key} は整数に変換できる値である必要があります。"
+        msg = f"{key} must be convertible to an integer."
         raise ValueError(msg)
     return int(value)
 
@@ -91,7 +91,7 @@ def _required_int(row: Mapping[str, object], key: str) -> int:
 def _required_float(row: Mapping[str, object], key: str) -> float:
     value = row.get(key)
     if isinstance(value, bool) or not isinstance(value, int | float | str):
-        msg = f"{key} は数値に変換できる値である必要があります。"
+        msg = f"{key} must be convertible to a number."
         raise ValueError(msg)
     return float(value)
 
@@ -99,6 +99,6 @@ def _required_float(row: Mapping[str, object], key: str) -> float:
 def _required_str(row: Mapping[str, object], key: str) -> str:
     value = row.get(key)
     if not isinstance(value, str) or not value:
-        msg = f"{key} は空でない文字列である必要があります。"
+        msg = f"{key} must be a non-empty string."
         raise ValueError(msg)
     return value

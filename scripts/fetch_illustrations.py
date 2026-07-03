@@ -1,4 +1,4 @@
-"""PokeAPI公式イラスト(official-artwork)を取得するCLI。"""
+"""CLI for fetching PokeAPI official artwork."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ ARTWORK_URL_TEMPLATE = (
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="manifestに載っているポケモンの公式イラストを取得します。")
+    parser = argparse.ArgumentParser(description="Fetch official artwork for Pokemon listed in the manifest.")
     parser.add_argument("--manifest", default="data/manifests/selected_regular.jsonl")
     parser.add_argument("--output", default="data/illustrations")
     parser.add_argument("--retries", type=int, default=3)
@@ -65,7 +65,7 @@ def main() -> None:
 def _required_int(row: Mapping[str, object], key: str) -> int:
     value = row.get(key)
     if isinstance(value, bool) or not isinstance(value, int | str):
-        msg = f"{key} は整数に変換できる値である必要があります。"
+        msg = f"{key} must be convertible to an integer."
         raise ValueError(msg)
     return int(value)
 
@@ -73,7 +73,7 @@ def _required_int(row: Mapping[str, object], key: str) -> int:
 def _required_str(row: Mapping[str, object], key: str) -> str:
     value = row.get(key)
     if not isinstance(value, str) or not value:
-        msg = f"{key} は空でない文字列である必要があります。"
+        msg = f"{key} must be a non-empty string."
         raise ValueError(msg)
     return value
 

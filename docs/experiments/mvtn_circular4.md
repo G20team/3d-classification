@@ -1,123 +1,90 @@
 # Learned Circular-4 MVTN
 
-Learned Circular-4 MVTNは、固定Ring-4を初期配置として、mesh形状から4視点のazimuth/elevation補正を学習する条件です。
+Learned Circular-4 MVTN initializes from the Fixed Ring-4 camera layout and learns azimuth/elevation
+offsets from mesh geometry.
 
-## 目的
+## Purpose
 
-この条件では、ポケモンごとの3D形状に応じて視点を調整することで、固定Ring-4より未知姿勢識別が改善するかを調べます。
-分類器側はFixed Ring-4と同じMVCNN構造を使い、差分を視点配置に集中させます。
+This condition tests whether Pokemon-dependent view placement improves identification under unseen pose
+conditions compared with the fixed four-view baseline.
 
-## MVTNの入力と出力
+The classifier side should remain aligned with Fixed Ring-4 MVCNN so the main difference is the camera
+policy.
 
-入力:
+## Inputs and Outputs
 
-- 正規化済みmesh vertices
-- 固定Ring-4のbase azimuth/elevation
-- 姿勢split由来のyaw/elevation offset
+Inputs:
 
-出力:
+- normalized mesh vertices,
+- Fixed Ring-4 base azimuth/elevation,
+- pose-split yaw/elevation offsets.
 
-- 補正後のazimuth
-- 補正後のelevation
-- 学習されたoffset
+Outputs:
 
-offsetは設定値で上限を持ちます。
+- adjusted azimuth,
+- adjusted elevation,
+- learned offsets.
 
-```text
-max_azimuth_offset_deg: 45.0
-max_elevation_offset_deg: 25.0
-```
+Offsets are bounded by config values, and elevation is constrained to avoid unstable rendering directions.
 
-elevationはレンダリングが破綻しにくいように範囲制限されます。
+## Configs
 
-## Config
-
-主なconfig:
+Main config:
 
 ```text
-configs/debug_mvtn_circular4.yaml
 configs/mvtn_circular4.yaml
 ```
 
-重要な設定:
+Debug config:
 
-- `model.experiment_kind: mvtn_circular4`
-- `model.num_views: 4`
-- `model.mvtn.num_views: 4`
-- `model.mvtn.point_samples: 512`
-- `model.mvtn.hidden_dim: 128`
-- `model.mvtn.collapse_threshold_deg: 5.0`
-- `training.batch_size: 4`
-- `training.epochs: 30`
+```text
+configs/debug_mvtn_circular4.yaml
+```
 
-Fixed Ring-4と比較するため、分類器のbackbone、feature_dim、dropout、optimizer設定は揃えます。
+## Run
 
-## 実行手順
-
-debug subset:
+Debug:
 
 ```bash
 uv run python scripts/train.py --config configs/debug_mvtn_circular4.yaml
 ```
 
-本実験:
+Full run:
 
 ```bash
 uv run python scripts/train.py --config configs/mvtn_circular4.yaml
 ```
 
-学習が完了すると、標準出力にrun directoryが表示されます。
-
-```text
-training finished: outputs/mvtn_circular4/<timestamp>_seed0
-```
-
-## 評価
+## Evaluate
 
 ```bash
 uv run python scripts/evaluate.py \
-  --checkpoint outputs/mvtn_circular4/<timestamp>_seed0/checkpoints/best.ckpt \
+  --checkpoint outputs/mvtn_circular4/.../checkpoints/best.ckpt \
   --split test
 ```
 
-出力先:
+## Camera Logs
 
-```text
-outputs/mvtn_circular4/<timestamp>_seed0/eval_test/
-```
+For MVTN, inspect learned camera behavior in addition to classification metrics.
 
-## Camera Log確認
-
-MVTN条件では、分類性能だけでなく学習された視点の挙動も確認します。
-
-主なファイル:
+Important files:
 
 ```text
 camera_positions.json
 learned_camera_visualization.png
 ```
 
-確認する項目:
+Check that:
 
-- `offset_abs_mean` が常に0に近すぎない。
-- `pairwise_distance_min` が小さくなりすぎていない。
-- `view_collapse` が頻発していない。
-- epochが進むにつれて視点間距離やoffsetが極端に不安定になっていない。
+- `offset_abs_mean` is not always near zero,
+- `pairwise_distance_min` does not become too small,
+- `view_collapse` is not frequent,
+- offsets and view distances do not become extremely unstable over epochs.
 
-`view_collapse` は、複数視点がほぼ同じ方向へ寄ってしまう状態の検出です。
-collapseが起きている場合、MVTNが性能改善していても、解釈には注意が必要です。
+`view_collapse` indicates that multiple views have moved toward nearly the same direction. If collapse
+occurs, classification gains should be interpreted carefully.
 
-## Fixed Ring-4との比較
+## Comparison With Fixed Ring-4
 
-MVTNの評価では、Single-viewではなくFixed Ring-4との比較を重視します。
-
-見るべき差分:
-
-- Top-1 Accuracy
-- Top-5 Accuracy
-- Macro-F1
-- per-class F1
-- confusion matrix上の混同パターン
-- camera offsetとview collapseの有無
-
-MVTNがFixed Ring-4を上回った場合でも、camera logを確認し、視点が意味のある範囲で動いているかを合わせて報告します。
+The main comparison is MVTN vs. Fixed Ring-4, not MVTN vs. Single-view. Report metric differences together
+with camera-log evidence so performance changes can be tied to learned view behavior.

@@ -1,4 +1,4 @@
-"""PokeAPIのNational Dex ID -> 英語名対応キャッシュ。"""
+"""Cache for PokeAPI National Dex ID -> English name mappings."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pokemon_3d_cls.io import read_json, write_json
 
 
 def load_or_fetch_pokemon_names(cache_path: Path, *, allow_fetch: bool = True) -> dict[int, str]:
-    """PokeAPIからID/英語名対応を取得し、ローカルcacheへ保存する。"""
+    """Fetch ID/English-name mappings from PokeAPI and save them to a local cache."""
 
     if cache_path.is_file():
         raw = read_json(cache_path)
@@ -23,7 +23,7 @@ def load_or_fetch_pokemon_names(cache_path: Path, *, allow_fetch: bool = True) -
         return {}
 
     names: dict[int, str] = {}
-    # National Dexは増え続けるため、まず大きめlimitで一覧を取得する。
+    # National Dex keeps growing, so request a large limit first.
     response = requests.get("https://pokeapi.co/api/v2/pokemon-species?limit=2000", timeout=30)
     response.raise_for_status()
     payload = response.json()

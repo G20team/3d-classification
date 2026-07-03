@@ -1,4 +1,4 @@
-"""採用アセットのturntable contact sheetを作るCLI。"""
+"""CLI for creating a turntable contact sheet of selected assets."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from pokemon_3d_cls.rendering.glb import render_silhouette
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="selected_regular manifestからcontact sheetを生成します。")
+    parser = argparse.ArgumentParser(description="Generate a contact sheet from the selected_regular manifest.")
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--num-samples", type=int, default=50)
@@ -49,7 +49,7 @@ def main() -> None:
             view_images.append(Image.fromarray(image).convert("RGB"))
         tiles.append(_hstack(view_images))
     if not tiles:
-        msg = "contact sheetに描画できるアセットがありません。監査manifestを確認してください。"
+        msg = "No assets can be drawn in the contact sheet. Check the audit manifest."
         raise ValueError(msg)
     sheet = _grid(tiles, columns=5)
     output_path = resolve_project_path(args.output, project_root)

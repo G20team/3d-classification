@@ -1,4 +1,4 @@
-"""採用GLBから正規化済みmesh cacheを作るCLI。"""
+"""CLI for creating normalized mesh caches from selected GLB files."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from pokemon_3d_cls.paths import find_project_root, resolve_project_path
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="selected_regular manifestからmesh cacheを作成します。")
+    parser = argparse.ArgumentParser(description="Create mesh caches from the selected_regular manifest.")
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--output-root", default="data/mesh_cache")
     args = parser.parse_args()

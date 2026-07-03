@@ -1,4 +1,4 @@
-"""公式イラストのalphaチャンネルから黒塗りシルエットを作るCLI。"""
+"""CLI for creating filled silhouettes from official-artwork alpha channels."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from pokemon_3d_cls.paths import ensure_directory, find_project_root, resolve_pr
 
 
 def illustration_to_silhouette(image: Image.Image, *, resolution: int, alpha_threshold: int = 32) -> np.ndarray:
-    """透過PNGのalphaチャンネルを二値化し、白背景+黒塗りのシルエット配列を返す。"""
+    """Binarize a transparent PNG alpha channel and return a white-background filled silhouette array."""
 
     rgba = image.convert("RGBA")
     alpha = np.array(rgba)[:, :, 3]
@@ -22,7 +22,7 @@ def illustration_to_silhouette(image: Image.Image, *, resolution: int, alpha_thr
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="公式イラストを黒塗りシルエットへ変換します。")
+    parser = argparse.ArgumentParser(description="Convert official artwork to filled silhouettes.")
     parser.add_argument("--input", default="data/illustrations")
     parser.add_argument("--output", default="data/illustrations_silhouette")
     parser.add_argument("--resolution", type=int, default=224)

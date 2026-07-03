@@ -1,4 +1,4 @@
-"""PyTorch3D renderを使うSingle/Fixed Ring-4/MVTN実験の学習。"""
+"""Training for Single/Fixed Ring-4/MVTN experiments using PyTorch3D rendering."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ from pokemon_3d_cls.training import resolve_device, set_seed
 
 
 def train_mesh_experiment(config: MeshExperimentConfig, project_root: Path) -> Path:
-    """設定に従ってSingle/Fixed Ring-4/MVTN実験を学習する。"""
+    """Train Single/Fixed Ring-4/MVTN experiments according to config."""
 
     if config.data.input_source == "silhouette_cache":
         return train_silhouette_experiment(config, project_root)
@@ -155,7 +155,7 @@ def train_mesh_experiment(config: MeshExperimentConfig, project_root: Path) -> P
 
 
 def train_silhouette_experiment(config: MeshExperimentConfig, project_root: Path) -> Path:
-    """render cache済み黒塗りシルエットでMVCNNを学習する。"""
+    """Train MVCNN with cached filled-silhouette renders."""
 
     set_seed(config.experiment.seed)
     device = resolve_device(config.training.device)
@@ -250,7 +250,7 @@ def evaluate_loader(
     progress_desc: str | None = None,
     cleanup_interval: int | None = None,
 ) -> dict[str, object]:
-    """DataLoaderを評価してmetrics dictを返す。"""
+    """Evaluate a DataLoader and return a metrics dictionary."""
 
     model.eval()
     if mvtn is not None:
@@ -288,7 +288,7 @@ def evaluate_silhouette_loader(
     class_names: list[str],
     progress_desc: str | None = None,
 ) -> dict[str, object]:
-    """シルエットDataLoaderを評価してmetrics dictを返す。"""
+    """Evaluate a silhouette DataLoader and return a metrics dictionary."""
 
     model.eval()
     labels_all: list[int] = []
@@ -547,13 +547,13 @@ def _metric_float(metrics: dict[str, object], key: str) -> float:
 
 def _object_to_float(value: object) -> float:
     if isinstance(value, bool) or not isinstance(value, int | float | str):
-        msg = "floatへ変換できない値です。"
+        msg = "Value cannot be converted to float."
         raise ValueError(msg)
     return float(value)
 
 
 def _object_to_int(value: object) -> int:
     if isinstance(value, bool) or not isinstance(value, int | str):
-        msg = "intへ変換できない値です。"
+        msg = "Value cannot be converted to int."
         raise ValueError(msg)
     return int(value)

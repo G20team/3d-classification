@@ -1,4 +1,4 @@
-"""姿勢splitの重複を検証するCLI。"""
+"""CLI for validating pose split overlap."""
 
 from __future__ import annotations
 
@@ -13,9 +13,9 @@ from pokemon_3d_cls.splits import build_pose_splits, load_pose_splits, validate_
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="姿勢splitのtrain/validation/test重複を検証します。")
-    parser.add_argument("--config", help="split生成config")
-    parser.add_argument("--splits", help="保存済みpose_splits.json")
+    parser = argparse.ArgumentParser(description="Validate train/validation/test overlap in pose splits.")
+    parser.add_argument("--config", help="Split generation config.")
+    parser.add_argument("--splits", help="Saved pose_splits.json.")
     args = parser.parse_args()
     project_root = find_project_root(Path.cwd())
     if args.config:
@@ -24,7 +24,7 @@ def main() -> None:
     elif args.splits:
         splits = load_pose_splits(resolve_project_path(args.splits, project_root))
     else:
-        raise SystemExit("--config または --splits が必要です。")
+        raise SystemExit("--config or --splits is required.")
     errors = validate_pose_splits(splits)
     if errors:
         raise SystemExit("\n".join(errors))

@@ -1,4 +1,4 @@
-"""scriptsからsrcレイアウトのpackageを読めるようにする。"""
+"""Make the src-layout package importable from scripts."""
 
 from __future__ import annotations
 

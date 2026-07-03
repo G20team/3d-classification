@@ -1,4 +1,4 @@
-"""Pokemon-3D-api/assetsをdata/raw_assetsへ取得する任意補助CLI。"""
+"""Optional helper CLI for fetching Pokemon-3D-api/assets into data/raw_assets."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from pokemon_3d_cls.paths import find_project_root, resolve_project_path
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Pokemon 3D assets repositoryを浅いcloneで取得します。")
+    parser = argparse.ArgumentParser(description="Fetch the Pokemon 3D assets repository with a shallow clone.")
     parser.add_argument("--output", default="data/raw_assets")
     parser.add_argument("--repo", default="https://github.com/Pokemon-3D-api/assets.git")
     args = parser.parse_args()

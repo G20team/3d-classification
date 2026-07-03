@@ -1,4 +1,4 @@
-"""姿勢split JSONを生成するCLI。"""
+"""CLI for generating pose split JSON."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from pokemon_3d_cls.splits import save_pose_splits
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="closed-set cross-orientation用の姿勢splitを作成します。")
+    parser = argparse.ArgumentParser(description="Create pose splits for closed-set cross-orientation experiments.")
     parser.add_argument("--config", required=True)
     args = parser.parse_args()
     project_root = find_project_root(Path(args.config).resolve().parent)

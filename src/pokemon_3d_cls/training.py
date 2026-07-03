@@ -1,4 +1,4 @@
-"""MVCNN学習パイプライン。"""
+"""MVCNN training pipeline."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from pokemon_3d_cls.paths import ensure_directory, make_run_id, resolve_project_
 
 
 def set_seed(seed: int) -> None:
-    """再現性のために主要な乱数seedを設定する。"""
+    """Set the main random seeds for reproducibility."""
 
     random.seed(seed)
     np.random.seed(seed)
@@ -35,7 +35,7 @@ def set_seed(seed: int) -> None:
 
 
 def resolve_device(device_name: str) -> torch.device:
-    """設定文字列からtorch deviceを決定する。"""
+    """Resolve a torch device from a config string."""
 
     if device_name == "auto":
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -43,7 +43,7 @@ def resolve_device(device_name: str) -> torch.device:
 
 
 def prepare_run(config: TrainRunConfig, project_root: Path) -> tuple[str, Path]:
-    """run_idとrun_dirを確定する。"""
+    """Resolve the run ID and run directory."""
 
     run_id = config.experiment.run_id or make_run_id(config.experiment.condition_id, config.experiment.seed)
     runs_root = resolve_project_path(config.output.runs_root, project_root)
@@ -52,7 +52,7 @@ def prepare_run(config: TrainRunConfig, project_root: Path) -> tuple[str, Path]:
 
 
 def train_config(config: TrainRunConfig, project_root: Path) -> Path:
-    """設定に従ってMVCNNを学習し、成果物をrun_dirへ保存する。"""
+    """Train MVCNN from config and save artifacts under run_dir."""
 
     set_seed(config.experiment.seed)
     run_id, run_dir = prepare_run(config, project_root)

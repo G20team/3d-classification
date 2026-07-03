@@ -1,4 +1,4 @@
-"""closed-set cross-orientation用の姿勢split。"""
+"""Pose splits for closed-set cross-orientation experiments."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from pokemon_3d_cls.io import read_json, write_json
 
 @dataclass(frozen=True)
 class PoseCondition:
-    """グローバル姿勢条件。"""
+    """Global pose condition."""
 
     yaw_offset: float
     elevation_offset: float
@@ -22,7 +22,7 @@ class PoseCondition:
 
 
 def build_pose_splits(config: SplitConfig) -> dict[str, list[dict[str, float]]]:
-    """SplitConfigからJSON保存可能な姿勢splitを作る。"""
+    """Build JSON-serializable pose splits from SplitConfig."""
 
     return {
         "train": [_condition_to_dict(condition) for condition in _conditions(config.train)],
@@ -32,7 +32,7 @@ def build_pose_splits(config: SplitConfig) -> dict[str, list[dict[str, float]]]:
 
 
 def validate_pose_splits(splits: dict[str, list[dict[str, float]]]) -> list[str]:
-    """姿勢条件の重複を検証し、エラー一覧を返す。"""
+    """Validate pose-condition overlap and return error messages."""
 
     errors: list[str] = []
     seen: dict[tuple[float, float], str] = {}
@@ -41,30 +41,30 @@ def validate_pose_splits(splits: dict[str, list[dict[str, float]]]) -> list[str]
             condition = (float(row["yaw_offset"]), float(row["elevation_offset"]))
             previous = seen.get(condition)
             if previous is not None and previous != split_name:
-                errors.append(f"{condition} が {previous} と {split_name} で重複しています。")
+                errors.append(f"{condition} overlaps between {previous} and {split_name}.")
             seen[condition] = split_name
     return errors
 
 
 def save_pose_splits(config: SplitConfig, output_path: Path) -> dict[str, list[dict[str, float]]]:
-    """姿勢splitを保存し、重複があれば例外を投げる。"""
+    """Save pose splits and raise an exception if overlap exists."""
 
     splits = build_pose_splits(config)
     errors = validate_pose_splits(splits)
     if errors:
-        msg = "姿勢splitが重複しています:\n" + "\n".join(errors)
+        msg = "Pose splits overlap:\n" + "\n".join(errors)
         raise ValueError(msg)
     write_json(output_path, {"splits": splits, "config": cast("dict[str, object]", asdict(config))})
     return splits
 
 
 def load_pose_splits(path: str | Path) -> dict[str, list[dict[str, float]]]:
-    """保存済みsplit JSONを読み込む。"""
+    """Load a saved split JSON file."""
 
     raw = read_json(path)
     splits = raw.get("splits", raw)
     if not isinstance(splits, dict):
-        msg = f"splitsがobjectではありません: {path}"
+        msg = f"splits is not an object: {path}"
         raise ValueError(msg)
     return cast("dict[str, list[dict[str, float]]]", splits)
 

@@ -1,4 +1,4 @@
-"""YAML設定に基づいてGLBからシルエットデータセットを生成するCLI。"""
+"""CLI for generating silhouette datasets from GLB files based on a YAML config."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ from pokemon_3d_cls.paths import find_project_root
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="GLBからシルエット画像データセットを生成します。")
-    parser.add_argument("--config", required=True, help="生成設定YAML")
+    parser = argparse.ArgumentParser(description="Generate a silhouette image dataset from GLB files.")
+    parser.add_argument("--config", required=True, help="Generation config YAML.")
     args = parser.parse_args()
 
     config_path = Path(args.config)
