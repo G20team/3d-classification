@@ -1,14 +1,13 @@
-# Pokemon 3D MVTN Multi-View Identification
+# Pokemon 3D multi-view name recognition from rendered mesh views
 
-This repository contains an experimental environment for identifying Pokemon from rendered views of GLB
-models from [Pokemon-3D-api/assets](https://github.com/Pokemon-3D-api/assets).
+The main research question is "Can the camera learn where to look with closed-set multi-view 3D assets?".
 
 The task is not open-set recognition of unseen Pokemon. It is **closed-set cross-orientation asset
 identification**: the same Pokemon catalog appears during training and evaluation, while the camera
 orientations are split so the model must identify known assets from unseen poses.
 
-The main research question is whether a four-view MVTN setup can learn Pokemon-dependent camera offsets
-that improve identification under unseen orientations compared with a fixed circular four-view camera.
+This repository contains an experimental environment for identifying Pokemon from rendered views of GLB
+models from [Pokemon-3D-api/assets](https://github.com/Pokemon-3D-api/assets).
 
 ## Experiment Conditions
 
@@ -38,44 +37,6 @@ Experiment guides:
 - [Evaluation](docs/evaluation.md): checkpoint evaluation, metrics, condition comparison, and reporting.
 
 Japanese documentation is preserved under [docs/ja](docs/ja/README.md).
-
-## Quick Start
-
-See the documentation above for details. The minimal command sequence is:
-
-```bash
-uv python install 3.10
-uv sync
-uv run python scripts/bootstrap_env.py
-```
-
-```bash
-uv run python scripts/fetch_assets.py --output data/raw_assets
-uv run python scripts/audit_assets.py \
-  --asset-root data/raw_assets \
-  --output data/manifests/asset_audit.jsonl
-uv run python scripts/render_contact_sheet.py \
-  --manifest data/manifests/selected_regular.jsonl \
-  --output outputs/asset_audit_contact_sheet.png
-uv run python scripts/prepare_mesh_cache.py \
-  --manifest data/manifests/selected_regular.jsonl \
-  --output-root data/mesh_cache
-uv run python scripts/build_splits.py --config configs/splits.yaml
-uv run python scripts/validate_splits.py --config configs/splits.yaml
-```
-
-```bash
-uv run python scripts/train.py --config configs/debug_single_view.yaml
-uv run python scripts/train.py --config configs/debug_fixed_ring4.yaml
-uv run python scripts/train.py --config configs/debug_mvtn_circular4.yaml
-```
-
-```bash
-uv run python scripts/train.py --config configs/single_view.yaml
-uv run python scripts/train.py --config configs/fixed_ring4.yaml
-uv run python scripts/train.py --config configs/mvtn_circular4.yaml
-uv run python scripts/evaluate.py --checkpoint outputs/.../checkpoints/best.ckpt --split test
-```
 
 ## Main Outputs
 
@@ -118,7 +79,7 @@ src/pokemon_3d_cls/
 └── splits.py             Pose splits
 ```
 
-## Public Release Notes
+## Notes
 
 - Pokemon assets, mesh caches, render caches, and training outputs are not tracked in Git.
 - This repository documents how to obtain assets from upstream sources; it does not redistribute Pokemon assets.
