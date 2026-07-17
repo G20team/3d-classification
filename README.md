@@ -2,9 +2,8 @@
 
 The main research question is "Can the camera learn where to look with closed-set multi-view 3D assets?".
 
-The task is not open-set recognition of unseen Pokemon. It is **closed-set cross-orientation asset
-identification**: the same Pokemon catalog appears during training and evaluation, while the camera
-orientations are split so the model must identify known assets from unseen poses.
+The task is not open-set recognition of unseen Pokemon. The same Pokemon catalog appears during training
+and evaluation, while Pokemon-pose samples are split with matched angle distributions.
 
 This repository contains an experimental environment for identifying Pokemon from rendered views of GLB
 models from [Pokemon-3D-api/assets](https://github.com/Pokemon-3D-api/assets).
@@ -16,6 +15,7 @@ models from [Pokemon-3D-api/assets](https://github.com/Pokemon-3D-api/assets).
 | Single-view | Baseline that classifies from one fixed view. | `configs/single_view.yaml` |
 | Fixed Ring-4 MVCNN | MVCNN baseline that aggregates four fixed circular views with view-wise max pooling. | `configs/fixed_ring4.yaml` |
 | Learned Circular-4 MVTN | MVTN condition initialized from Fixed Ring-4 and trained to predict four camera angle offsets from mesh geometry. | `configs/mvtn_circular4.yaml` |
+| View Transformer-4 | Shared ResNet18 view features aggregated by a two-layer Transformer. | `configs/view_transformer4.yaml` |
 
 ## Documentation
 
@@ -31,6 +31,7 @@ Experiment guides:
 - [Single-view](docs/experiments/single_view.md): baseline purpose, commands, and evaluation.
 - [Fixed Ring-4 MVCNN](docs/experiments/fixed_ring4.md): fixed four-view purpose, commands, and evaluation.
 - [Learned Circular-4 MVTN](docs/experiments/mvtn_circular4.md): learned-view purpose, commands, and camera logs.
+- [View Transformer-4](docs/experiments/view_transformer4.md): attention-based four-view aggregation.
 - [Single-view details](docs/experiments/single_view_details.md): assumptions, method, metrics, and interpretation.
 - [Fixed Ring-4 MVCNN details](docs/experiments/fixed_ring4_details.md): design rationale and comparison points.
 - [Learned Circular-4 MVTN details](docs/experiments/mvtn_circular4_details.md): model structure, camera logs, and interpretation caveats.
@@ -48,6 +49,7 @@ environment_report.json
 metadata.json
 metrics.json
 per_class_metrics.csv
+pose_metrics.csv
 confusion_matrix.png
 checkpoints/best.ckpt
 logs/
@@ -82,6 +84,8 @@ src/pokemon_3d_cls/
 ## Notes
 
 - Pokemon assets, mesh caches, render caches, and training outputs are not tracked in Git.
+- Full fixed-view runs use a SHA-256-keyed PyTorch3D RGB PNG cache; generate the one-view and shared
+  four-view caches with `scripts/prepare_rgb_render_cache.py` before training. MVTN keeps online rendering.
 - This repository documents how to obtain assets from upstream sources; it does not redistribute Pokemon assets.
 - ViewFormer, View-GCN, direct point-cloud input, retrieval, open-set recognition, and comparisons with eight or more views are out of scope for the current implementation.
 - Fixed Ring-4 and MVTN should use matched encoder, classifier, view count, image resolution, and optimizer settings so the main difference is the camera policy.

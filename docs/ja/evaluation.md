@@ -1,6 +1,6 @@
 # 評価と結果解釈
 
-このドキュメントでは、保存済みcheckpointの評価、metricsの読み方、3条件の比較方法をまとめます。
+このドキュメントでは、保存済みcheckpointの評価、metricsの読み方、4条件の比較方法をまとめます。
 
 ## Checkpoint評価
 
@@ -39,6 +39,7 @@ uv run python scripts/evaluate.py \
 ```text
 metrics.json
 confusion_matrix.png
+pose_metrics.csv
 ```
 
 学習run directoryには次も保存されています。
@@ -60,6 +61,7 @@ learned_camera_visualization.png
 - `Macro-F1`: クラスごとのF1を平均した値。クラス間の偏りに比較的強い。
 - `per_class_metrics.csv`: どのポケモンで失敗しやすいか。
 - `confusion_matrix.png`: 混同しやすいポケモンの組み合わせ。
+- `pose_metrics.csv`: yaw/elevationごとの件数、Top-1、Top-5。角度別の難易度差を確認する。
 
 Macro-F1はクラスごとに同じ重みを置くため、一部の頻出クラスだけがよく当たる状態を見抜きやすい指標です。
 この実験ではvalidation macro-F1をモデル選択指標にしています。
@@ -70,7 +72,8 @@ Macro-F1はクラスごとに同じ重みを置くため、一部の頻出クラ
 
 1. Single-viewとFixed Ring-4を比較し、視点数を増やした効果を見る。
 2. Fixed Ring-4とMVTNを比較し、視点配置を学習した効果を見る。
-3. MVTNのcamera logを確認し、性能差がcollapseや不自然な視点集中で説明されないか確認する。
+3. Fixed Ring-4とView Transformer-4を比較し、attention統合の効果を見る。
+4. MVTNのcamera logを確認し、性能差がcollapseや不自然な視点集中で説明されないか確認する。
 
 比較表の例:
 
@@ -79,6 +82,7 @@ Macro-F1はクラスごとに同じ重みを置くため、一部の頻出クラ
 | Single-view               |    0 |       |       |          |                          |
 | Fixed Ring-4              |    0 |       |       |          |                          |
 | Learned Circular-4 MVTN   |    0 |       |       |          | view collapse有無を記録  |
+| View Transformer-4        |    0 |       |       |          | Fixed Ring-4との差を記録 |
 
 複数seedを実行した場合は、平均と標準偏差を併記します。
 

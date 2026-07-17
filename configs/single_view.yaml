@@ -4,11 +4,13 @@ experiment:
   seed: 0
 
 data:
+  input_source: rgb_cache
   manifest_path: data/manifests/selected_regular.jsonl
   mesh_cache_root: data/mesh_cache
-  splits_path: data/manifests/pose_splits.json
+  splits_path: data/manifests/pose_splits_stratified_seed0.json
+  render_cache_root: data/render_cache
   image_size: 224
-  num_workers: 0
+  num_workers: 4
 
 model:
   experiment_kind: single_view

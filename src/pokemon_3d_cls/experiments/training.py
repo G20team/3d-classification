@@ -22,15 +22,24 @@ from pokemon_3d_cls.config import MeshExperimentConfig
 from pokemon_3d_cls.environment import collect_environment_report
 from pokemon_3d_cls.experiments.dataset import (
     MeshPoseDataset,
+    RGBRenderPoseDataset,
     SilhouettePoseDataset,
+    collate_cached_image_samples,
     collate_mesh_samples,
-    collate_silhouette_samples,
 )
-from pokemon_3d_cls.experiments.metrics import compute_classification_metrics, save_confusion_matrix_png
+from pokemon_3d_cls.experiments.metrics import (
+    compute_classification_metrics,
+    compute_pose_metrics,
+    save_confusion_matrix_png,
+    save_pose_metrics_csv,
+)
+from pokemon_3d_cls.experiments.rgb_render_cache import rgb_render_cache_identity
 from pokemon_3d_cls.io import write_json, write_yaml
 from pokemon_3d_cls.models import (
     CircularViewPredictor,
     MVCNNClassifier,
+    ViewTransformerClassifier,
+    build_experiment_classifier,
     camera_statistics,
     detect_view_collapse,
 )
@@ -44,8 +53,8 @@ from pokemon_3d_cls.training import resolve_device, set_seed
 def train_mesh_experiment(config: MeshExperimentConfig, project_root: Path) -> Path:
     """Train Single/Fixed Ring-4/MVTN experiments according to config."""
 
-    if config.data.input_source == "silhouette_cache":
-        return train_silhouette_experiment(config, project_root)
+    if config.data.input_source != "mesh":
+        return train_cached_image_experiment(config, project_root)
 
     set_seed(config.experiment.seed)
     device = resolve_device(config.training.device)
@@ -59,14 +68,7 @@ def train_mesh_experiment(config: MeshExperimentConfig, project_root: Path) -> P
     train_loader = _loader(train_dataset, config, shuffle=True)
     validation_loader = _loader(validation_dataset, config, shuffle=False)
 
-    model = MVCNNClassifier(
-        num_classes=len(train_dataset.class_names),
-        backbone=config.model.backbone,
-        input_channels=3,
-        feature_dim=config.model.feature_dim,
-        pretrained=config.model.pretrained,
-        dropout=config.model.dropout,
-    ).to(device)
+    model = _build_classifier(config, num_classes=len(train_dataset.class_names), input_channels=3).to(device)
     mvtn = _build_mvtn(config, device)
     parameters = list(model.parameters()) + (list(mvtn.parameters()) if mvtn is not None else [])
     optimizer = AdamW(
@@ -131,6 +133,7 @@ def train_mesh_experiment(config: MeshExperimentConfig, project_root: Path) -> P
     finally:
         writer.close()
 
+    _load_best_checkpoint(checkpoint_dir / "best.ckpt", model, mvtn, device)
     write_json(run_dir / "camera_positions.json", {"epochs": camera_history})
     final_metrics = evaluate_loader(
         model=model,
@@ -149,13 +152,14 @@ def train_mesh_experiment(config: MeshExperimentConfig, project_root: Path) -> P
         validation_dataset.class_names,
         run_dir / "confusion_matrix.png",
     )
+    save_pose_metrics_csv(cast("list[dict[str, object]]", final_metrics["per_pose"]), run_dir / "pose_metrics.csv")
     _save_camera_visualization(run_dir / "learned_camera_visualization.png", camera_history)
     ensure_directory(run_dir / "rendered_examples")
     return run_dir
 
 
-def train_silhouette_experiment(config: MeshExperimentConfig, project_root: Path) -> Path:
-    """Train MVCNN with cached filled-silhouette renders."""
+def train_cached_image_experiment(config: MeshExperimentConfig, project_root: Path) -> Path:
+    """Train a fixed-view classifier from cached silhouette or PyTorch3D RGB renders."""
 
     set_seed(config.experiment.seed)
     device = resolve_device(config.training.device)
@@ -164,18 +168,16 @@ def train_silhouette_experiment(config: MeshExperimentConfig, project_root: Path
     environment_report = collect_environment_report(run_dir / "environment_report.json")
     write_json(run_dir / "metadata.json", _metadata(config, environment_report))
 
-    train_dataset = _silhouette_dataset(config, project_root, config.data.train_split)
-    validation_dataset = _silhouette_dataset(config, project_root, config.data.validation_split)
-    train_loader = _silhouette_loader(train_dataset, config, shuffle=True)
-    validation_loader = _silhouette_loader(validation_dataset, config, shuffle=False)
+    train_dataset = _cached_image_dataset(config, project_root, config.data.train_split)
+    validation_dataset = _cached_image_dataset(config, project_root, config.data.validation_split)
+    train_loader = _cached_image_loader(train_dataset, config, shuffle=True)
+    validation_loader = _cached_image_loader(validation_dataset, config, shuffle=False)
 
-    model = MVCNNClassifier(
+    input_channels = 1 if config.data.input_source == "silhouette_cache" else 3
+    model = _build_classifier(
+        config,
         num_classes=len(train_dataset.class_names),
-        backbone=config.model.backbone,
-        input_channels=1,
-        feature_dim=config.model.feature_dim,
-        pretrained=config.model.pretrained,
-        dropout=config.model.dropout,
+        input_channels=input_channels,
     ).to(device)
     optimizer = AdamW(
         model.parameters(),
@@ -195,7 +197,7 @@ def train_silhouette_experiment(config: MeshExperimentConfig, project_root: Path
     try:
         epoch_progress = tqdm(range(1, config.training.epochs + 1), desc="epochs", unit="epoch")
         for epoch in epoch_progress:
-            train_loss = _run_silhouette_epoch(
+            train_loss = _run_cached_image_epoch(
                 model=model,
                 loader=train_loader,
                 criterion=criterion,
@@ -203,7 +205,7 @@ def train_silhouette_experiment(config: MeshExperimentConfig, project_root: Path
                 device=device,
                 progress_desc=f"train {epoch}/{config.training.epochs}",
             )
-            validation = evaluate_silhouette_loader(
+            validation = evaluate_cached_image_loader(
                 model=model,
                 loader=validation_loader,
                 device=device,
@@ -221,7 +223,8 @@ def train_silhouette_experiment(config: MeshExperimentConfig, project_root: Path
     finally:
         writer.close()
 
-    final_metrics = evaluate_silhouette_loader(
+    _load_best_checkpoint(checkpoint_dir / "best.ckpt", model, None, device)
+    final_metrics = evaluate_cached_image_loader(
         model=model,
         loader=validation_loader,
         device=device,
@@ -235,12 +238,13 @@ def train_silhouette_experiment(config: MeshExperimentConfig, project_root: Path
         validation_dataset.class_names,
         run_dir / "confusion_matrix.png",
     )
+    save_pose_metrics_csv(cast("list[dict[str, object]]", final_metrics["per_pose"]), run_dir / "pose_metrics.csv")
     return run_dir
 
 
 def evaluate_loader(
     *,
-    model: MVCNNClassifier,
+    model: nn.Module,
     mvtn: CircularViewPredictor | None,
     renderer: PyTorch3DRenderer,
     loader: DataLoader,
@@ -257,6 +261,7 @@ def evaluate_loader(
         mvtn.eval()
     labels_all: list[int] = []
     probabilities_all: list[np.ndarray] = []
+    pose_offsets_all: list[tuple[float, float]] = []
     batches = tqdm(loader, desc=progress_desc, unit="batch", leave=False) if progress_desc else loader
     with torch.inference_mode():
         for batch_index, batch in enumerate(batches, start=1):
@@ -271,43 +276,58 @@ def evaluate_loader(
             logits = model(images)
             probabilities_all.append(torch.softmax(logits, dim=1).cpu().numpy())
             labels_all.extend(int(label) for label in labels.cpu().tolist())
+            pose_offsets_all.extend(_batch_pose_offsets(batch))
             del labels, azimuths, elevations, images, logits
             if cleanup_interval is not None and batch_index % cleanup_interval == 0:
                 gc.collect()
                 if device.type == "cuda":
                     torch.cuda.empty_cache()
     probabilities = np.concatenate(probabilities_all, axis=0) if probabilities_all else np.zeros((0, len(class_names)))
-    return compute_classification_metrics(labels=labels_all, probabilities=probabilities, class_names=class_names)
+    metrics = compute_classification_metrics(labels=labels_all, probabilities=probabilities, class_names=class_names)
+    metrics["per_pose"] = compute_pose_metrics(
+        labels=labels_all,
+        probabilities=probabilities,
+        pose_offsets=pose_offsets_all,
+    )
+    return metrics
 
 
-def evaluate_silhouette_loader(
+def evaluate_cached_image_loader(
     *,
-    model: MVCNNClassifier,
+    model: nn.Module,
     loader: DataLoader,
     device: torch.device,
     class_names: list[str],
     progress_desc: str | None = None,
 ) -> dict[str, object]:
-    """Evaluate a silhouette DataLoader and return a metrics dictionary."""
+    """Evaluate cached silhouette or RGB images and return a metrics dictionary."""
 
     model.eval()
     labels_all: list[int] = []
     probabilities_all: list[np.ndarray] = []
+    pose_offsets_all: list[tuple[float, float]] = []
     batches = tqdm(loader, desc=progress_desc, unit="batch", leave=False) if progress_desc else loader
     with torch.inference_mode():
         for batch in batches:
-            labels = cast("torch.Tensor", batch["labels"]).to(device)
-            images = cast("torch.Tensor", batch["images"]).to(device)
+            labels = cast("torch.Tensor", batch["labels"]).to(device, non_blocking=True)
+            images = cast("torch.Tensor", batch["images"]).to(device, non_blocking=True)
             logits = model(images)
             probabilities_all.append(torch.softmax(logits, dim=1).cpu().numpy())
             labels_all.extend(int(label) for label in labels.cpu().tolist())
+            pose_offsets_all.extend(_batch_pose_offsets(batch))
     probabilities = np.concatenate(probabilities_all, axis=0) if probabilities_all else np.zeros((0, len(class_names)))
-    return compute_classification_metrics(labels=labels_all, probabilities=probabilities, class_names=class_names)
+    metrics = compute_classification_metrics(labels=labels_all, probabilities=probabilities, class_names=class_names)
+    metrics["per_pose"] = compute_pose_metrics(
+        labels=labels_all,
+        probabilities=probabilities,
+        pose_offsets=pose_offsets_all,
+    )
+    return metrics
 
 
 def _run_epoch(
     *,
-    model: MVCNNClassifier,
+    model: nn.Module,
     mvtn: CircularViewPredictor | None,
     renderer: PyTorch3DRenderer,
     loader: DataLoader,
@@ -344,9 +364,9 @@ def _run_epoch(
     return running_loss / max(seen, 1), last_camera_stats
 
 
-def _run_silhouette_epoch(
+def _run_cached_image_epoch(
     *,
-    model: MVCNNClassifier,
+    model: nn.Module,
     loader: DataLoader,
     criterion: nn.Module,
     optimizer: Optimizer,
@@ -358,8 +378,8 @@ def _run_silhouette_epoch(
     seen = 0
     batches = tqdm(loader, desc=progress_desc, unit="batch", leave=False) if progress_desc else loader
     for batch in batches:
-        labels = cast("torch.Tensor", batch["labels"]).to(device)
-        images = cast("torch.Tensor", batch["images"]).to(device)
+        labels = cast("torch.Tensor", batch["labels"]).to(device, non_blocking=True)
+        images = cast("torch.Tensor", batch["images"]).to(device, non_blocking=True)
         optimizer.zero_grad()
         logits = model(images)
         loss = criterion(logits, labels)
@@ -401,6 +421,15 @@ def _camera_angles(
     return azimuths, elevations, stats
 
 
+def _batch_pose_offsets(batch: dict[str, object]) -> list[tuple[float, float]]:
+    yaw_offsets = cast("torch.Tensor", batch["yaw_offsets"]).tolist()
+    elevation_offsets = cast("torch.Tensor", batch["elevation_offsets"]).tolist()
+    return [
+        (float(yaw), float(elevation))
+        for yaw, elevation in zip(yaw_offsets, elevation_offsets, strict=True)
+    ]
+
+
 def _build_mvtn(config: MeshExperimentConfig, device: torch.device) -> CircularViewPredictor | None:
     if config.model.experiment_kind != "mvtn_circular4":
         return None
@@ -413,6 +442,29 @@ def _build_mvtn(config: MeshExperimentConfig, device: torch.device) -> CircularV
     ).to(device)
 
 
+def _build_classifier(
+    config: MeshExperimentConfig,
+    *,
+    num_classes: int,
+    input_channels: int,
+) -> MVCNNClassifier | ViewTransformerClassifier:
+    transformer = config.model.transformer
+    return build_experiment_classifier(
+        experiment_kind=config.model.experiment_kind,
+        num_classes=num_classes,
+        num_views=config.model.num_views,
+        backbone=config.model.backbone,
+        input_channels=input_channels,
+        feature_dim=config.model.feature_dim,
+        pretrained=config.model.pretrained,
+        dropout=config.model.dropout,
+        transformer_num_layers=transformer.num_layers,
+        transformer_num_heads=transformer.num_heads,
+        transformer_mlp_dim=transformer.mlp_dim,
+        transformer_dropout=transformer.dropout,
+    )
+
+
 def _dataset(config: MeshExperimentConfig, project_root: Path, split: str) -> MeshPoseDataset:
     return MeshPoseDataset(
         manifest_path=resolve_project_path(config.data.manifest_path, project_root),
@@ -423,18 +475,32 @@ def _dataset(config: MeshExperimentConfig, project_root: Path, split: str) -> Me
     )
 
 
-def _silhouette_dataset(config: MeshExperimentConfig, project_root: Path, split: str) -> SilhouettePoseDataset:
-    render_cache_root = (
-        resolve_project_path(config.data.render_cache_root, project_root) / config.experiment.condition_id
-    )
-    return SilhouettePoseDataset(
-        manifest_path=resolve_project_path(config.data.manifest_path, project_root),
-        splits_path=resolve_project_path(config.data.splits_path, project_root),
-        split=split,
-        render_cache_root=render_cache_root,
-        num_views=config.model.num_views,
-        class_limit=config.data.class_limit,
-    )
+def _cached_image_dataset(
+    config: MeshExperimentConfig,
+    project_root: Path,
+    split: str,
+) -> SilhouettePoseDataset | RGBRenderPoseDataset:
+    common = {
+        "manifest_path": resolve_project_path(config.data.manifest_path, project_root),
+        "splits_path": resolve_project_path(config.data.splits_path, project_root),
+        "split": split,
+        "num_views": config.model.num_views,
+        "class_limit": config.data.class_limit,
+    }
+    if config.data.input_source == "silhouette_cache":
+        render_cache_root = (
+            resolve_project_path(config.data.render_cache_root, project_root) / config.experiment.condition_id
+        )
+        return SilhouettePoseDataset(render_cache_root=render_cache_root, **common)
+    if config.data.input_source == "rgb_cache":
+        identity = rgb_render_cache_identity(config, project_root)
+        return RGBRenderPoseDataset(
+            render_cache_dir=identity.cache_dir,
+            image_size=config.rendering.image_size,
+            **common,
+        )
+    msg = f"Unsupported cached input source: {config.data.input_source}"
+    raise ValueError(msg)
 
 
 def _loader(dataset: MeshPoseDataset, config: MeshExperimentConfig, *, shuffle: bool) -> DataLoader:
@@ -449,15 +515,22 @@ def _loader(dataset: MeshPoseDataset, config: MeshExperimentConfig, *, shuffle: 
     )
 
 
-def _silhouette_loader(dataset: SilhouettePoseDataset, config: MeshExperimentConfig, *, shuffle: bool) -> DataLoader:
+def _cached_image_loader(
+    dataset: SilhouettePoseDataset | RGBRenderPoseDataset,
+    config: MeshExperimentConfig,
+    *,
+    shuffle: bool,
+) -> DataLoader:
     generator = torch.Generator().manual_seed(config.experiment.seed)
     return DataLoader(
         dataset,
         batch_size=config.training.batch_size,
         shuffle=shuffle,
         num_workers=config.data.num_workers,
-        collate_fn=collate_silhouette_samples,
+        collate_fn=collate_cached_image_samples,
         generator=generator if shuffle else None,
+        persistent_workers=config.data.num_workers > 0,
+        pin_memory=torch.cuda.is_available(),
     )
 
 
@@ -471,7 +544,7 @@ def _prepare_run_dir(config: MeshExperimentConfig, project_root: Path) -> Path:
 
 def _save_checkpoint(
     path: Path,
-    model: MVCNNClassifier,
+    model: nn.Module,
     mvtn: CircularViewPredictor | None,
     config: MeshExperimentConfig,
     epoch: int,
@@ -487,6 +560,19 @@ def _save_checkpoint(
         },
         path,
     )
+
+
+def _load_best_checkpoint(
+    path: Path,
+    model: nn.Module,
+    mvtn: CircularViewPredictor | None,
+    device: torch.device,
+) -> None:
+    checkpoint = torch.load(path, map_location=device, weights_only=False)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    mvtn_state = checkpoint.get("mvtn_state_dict")
+    if mvtn is not None and mvtn_state is not None:
+        mvtn.load_state_dict(mvtn_state)
 
 
 def _write_per_class_csv(path: Path, per_class: dict[str, object]) -> None:

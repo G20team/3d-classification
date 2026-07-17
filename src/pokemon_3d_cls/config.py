@@ -9,11 +9,12 @@ from typing import Literal, Mapping, cast
 from pokemon_3d_cls.io import read_yaml_mapping
 
 BackboneName = Literal["resnet18", "simple_cnn"]
+SplitStrategy = Literal["exclusive_conditions", "stratified_samples"]
 ViewpointMode = Literal["quiz", "turntable", "sphere"]
 UpAxis = Literal["y", "z"]
 LabelMode = Literal["stem", "species"]
-ExperimentKind = Literal["single_view", "fixed_ring4", "mvtn_circular4"]
-InputSource = Literal["mesh", "silhouette_cache"]
+ExperimentKind = Literal["single_view", "fixed_ring4", "mvtn_circular4", "view_transformer4"]
+InputSource = Literal["mesh", "silhouette_cache", "rgb_cache"]
 
 
 @dataclass(frozen=True)
@@ -144,10 +145,24 @@ class PoseSplitValues:
 
 
 @dataclass(frozen=True)
+class SplitCounts:
+    """Number of pose samples assigned to each split per class."""
+
+    train: int = 9
+    validation: int = 4
+    test: int = 4
+
+
+@dataclass(frozen=True)
 class SplitConfig:
     """Pose split settings for closed-set cross-orientation experiments."""
 
     output_path: str = "data/manifests/pose_splits.json"
+    strategy: SplitStrategy = "exclusive_conditions"
+    manifest_path: str | None = None
+    seed: int = 0
+    split_counts: SplitCounts = field(default_factory=SplitCounts)
+    pose_groups: tuple[PoseSplitValues, ...] = ()
     train: PoseSplitValues = field(
         default_factory=lambda: PoseSplitValues(
             yaw_offsets=(-20.0, 0.0, 20.0),
@@ -204,6 +219,16 @@ class MVTNConfig:
 
 
 @dataclass(frozen=True)
+class ViewTransformerConfig:
+    """Transformer settings for aggregating multiple view features."""
+
+    num_layers: int = 2
+    num_heads: int = 8
+    mlp_dim: int = 2048
+    dropout: float = 0.1
+
+
+@dataclass(frozen=True)
 class RenderConfig:
     """Experiment rendering settings."""
 
@@ -226,6 +251,7 @@ class MeshExperimentModelConfig:
     dropout: float = 0.3
     num_views: int = 1
     mvtn: MVTNConfig = field(default_factory=MVTNConfig)
+    transformer: ViewTransformerConfig = field(default_factory=ViewTransformerConfig)
 
 
 @dataclass(frozen=True)
@@ -348,12 +374,37 @@ def parse_split_config(raw: Mapping[str, object]) -> SplitConfig:
     train = _mapping(raw.get("train", {}), "train")
     validation = _mapping(raw.get("validation", {}), "validation")
     test = _mapping(raw.get("test", {}), "test")
-    return SplitConfig(
+    strategy = _split_strategy(raw, "strategy", "exclusive_conditions")
+    split_counts = _mapping(raw.get("split_counts", {}), "split_counts")
+    pose_groups = _pose_groups(raw.get("pose_groups", ()))
+    config = SplitConfig(
         output_path=_str(raw, "output_path", "data/manifests/pose_splits.json"),
+        strategy=strategy,
+        manifest_path=_optional_str(raw, "manifest_path"),
+        seed=_int(raw, "seed", 0),
+        split_counts=SplitCounts(
+            train=_positive_int(split_counts, "train", 9),
+            validation=_positive_int(split_counts, "validation", 4),
+            test=_positive_int(split_counts, "test", 4),
+        ),
+        pose_groups=pose_groups,
         train=_pose_split(train, default_yaw=(-20.0, 0.0, 20.0), default_elevation=(-10.0, 0.0, 10.0)),
         validation=_pose_split(validation, default_yaw=(-30.0, 30.0), default_elevation=(-15.0, 15.0)),
         test=_pose_split(test, default_yaw=(-45.0, 45.0), default_elevation=(-25.0, 25.0)),
     )
+    if config.strategy == "stratified_samples":
+        if config.manifest_path is None:
+            msg = "manifest_path is required for stratified_samples."
+            raise ValueError(msg)
+        if not config.pose_groups:
+            msg = "pose_groups must not be empty for stratified_samples."
+            raise ValueError(msg)
+        condition_count = sum(len(group.yaw_offsets) * len(group.elevation_offsets) for group in config.pose_groups)
+        assigned_count = config.split_counts.train + config.split_counts.validation + config.split_counts.test
+        if condition_count != assigned_count:
+            msg = f"split_counts total ({assigned_count}) must match pose condition count ({condition_count})."
+            raise ValueError(msg)
+    return config
 
 
 def parse_mesh_experiment_config(raw: Mapping[str, object]) -> MeshExperimentConfig:
@@ -363,13 +414,14 @@ def parse_mesh_experiment_config(raw: Mapping[str, object]) -> MeshExperimentCon
     data = _mapping(raw.get("data", {}), "data")
     model = _mapping(raw.get("model", {}), "model")
     mvtn = _mapping(model.get("mvtn", {}), "model.mvtn")
+    transformer = _mapping(model.get("transformer", {}), "model.transformer")
     rendering = _mapping(raw.get("rendering", {}), "rendering")
     training = _mapping(raw.get("training", {}), "training")
     output = _mapping(raw.get("output", {}), "output")
     kind = _experiment_kind(model, "experiment_kind", "single_view")
     default_views = 1 if kind == "single_view" else 4
 
-    return MeshExperimentConfig(
+    config = MeshExperimentConfig(
         experiment=ExperimentConfig(
             condition_id=_str(experiment, "condition_id", kind),
             condition_name=_str(experiment, "condition_name", kind),
@@ -405,6 +457,12 @@ def parse_mesh_experiment_config(raw: Mapping[str, object]) -> MeshExperimentCon
                 hidden_dim=_positive_int(mvtn, "hidden_dim", 128),
                 collapse_threshold_deg=_positive_float(mvtn, "collapse_threshold_deg", 5.0),
             ),
+            transformer=ViewTransformerConfig(
+                num_layers=_positive_int(transformer, "num_layers", 2),
+                num_heads=_positive_int(transformer, "num_heads", 8),
+                mlp_dim=_positive_int(transformer, "mlp_dim", 2048),
+                dropout=_bounded_float(transformer, "dropout", 0.1, min_value=0.0, max_value=1.0),
+            ),
         ),
         rendering=RenderConfig(
             image_size=_positive_int(rendering, "image_size", 224),
@@ -423,6 +481,10 @@ def parse_mesh_experiment_config(raw: Mapping[str, object]) -> MeshExperimentCon
         ),
         output=OutputConfig(runs_root=_str(output, "runs_root", "outputs")),
     )
+    if config.data.input_source == "rgb_cache" and config.model.experiment_kind == "mvtn_circular4":
+        msg = "rgb_cache cannot be used with mvtn_circular4 because learned camera angles require online rendering."
+        raise ValueError(msg)
+    return config
 
 
 def _mapping(value: object, name: str) -> Mapping[str, object]:
@@ -583,6 +645,24 @@ def _pose_split(
     )
 
 
+def _pose_groups(value: object) -> tuple[PoseSplitValues, ...]:
+    if value in (None, (), []):
+        return ()
+    if not isinstance(value, list | tuple) or isinstance(value, str):
+        msg = "pose_groups must be a list of mappings."
+        raise ValueError(msg)
+    groups: list[PoseSplitValues] = []
+    for index, item in enumerate(value):
+        mapping = _mapping(item, f"pose_groups[{index}]")
+        groups.append(
+            PoseSplitValues(
+                yaw_offsets=_float_sequence(mapping, "yaw_offsets", ()),
+                elevation_offsets=_float_sequence(mapping, "elevation_offsets", ()),
+            )
+        )
+    return tuple(groups)
+
+
 def _backbone(mapping: Mapping[str, object], key: str, default: BackboneName) -> BackboneName:
     value = _str(mapping, key, default)
     if value in ("resnet18", "simple_cnn"):
@@ -593,17 +673,25 @@ def _backbone(mapping: Mapping[str, object], key: str, default: BackboneName) ->
 
 def _experiment_kind(mapping: Mapping[str, object], key: str, default: ExperimentKind) -> ExperimentKind:
     value = _str(mapping, key, default)
-    if value in ("single_view", "fixed_ring4", "mvtn_circular4"):
+    if value in ("single_view", "fixed_ring4", "mvtn_circular4", "view_transformer4"):
         return cast("ExperimentKind", value)
-    msg = f"{key} must be one of single_view / fixed_ring4 / mvtn_circular4."
+    msg = f"{key} must be one of single_view / fixed_ring4 / mvtn_circular4 / view_transformer4."
+    raise ValueError(msg)
+
+
+def _split_strategy(mapping: Mapping[str, object], key: str, default: SplitStrategy) -> SplitStrategy:
+    value = _str(mapping, key, default)
+    if value in ("exclusive_conditions", "stratified_samples"):
+        return cast("SplitStrategy", value)
+    msg = f"{key} must be one of exclusive_conditions / stratified_samples."
     raise ValueError(msg)
 
 
 def _input_source(mapping: Mapping[str, object], key: str, default: InputSource) -> InputSource:
     value = _str(mapping, key, default)
-    if value in ("mesh", "silhouette_cache"):
+    if value in ("mesh", "silhouette_cache", "rgb_cache"):
         return cast("InputSource", value)
-    msg = f"{key} must be one of mesh / silhouette_cache."
+    msg = f"{key} must be one of mesh / silhouette_cache / rgb_cache."
     raise ValueError(msg)
 
 

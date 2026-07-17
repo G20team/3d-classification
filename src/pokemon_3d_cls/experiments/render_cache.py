@@ -14,7 +14,7 @@ from pokemon_3d_cls.experiments.silhouette_rendering import render_silhouette
 from pokemon_3d_cls.io import read_jsonl
 from pokemon_3d_cls.models.camera import fixed_camera_angles
 from pokemon_3d_cls.paths import ensure_directory, resolve_project_path
-from pokemon_3d_cls.splits import load_pose_splits
+from pokemon_3d_cls.splits import resolve_pose_samples
 
 
 def build_render_cache(config: MeshExperimentConfig, project_root: Path, *, splits: list[str]) -> Path:
@@ -34,38 +34,37 @@ def build_render_cache(config: MeshExperimentConfig, project_root: Path, *, spli
         msg = f"Manifest has no selected classes: {manifest_path}"
         raise ValueError(msg)
 
-    pose_splits = load_pose_splits(splits_path)
     azimuths_tensor, elevations_tensor = fixed_camera_angles(config.model.experiment_kind)
     azimuths = [float(value) for value in azimuths_tensor.tolist()]
     elevations = [float(value) for value in elevations_tensor.tolist()]
 
     for split in splits:
-        if split not in pose_splits:
-            msg = f"Split was not found: {split}"
-            raise ValueError(msg)
-        conditions = pose_splits[split]
+        rows_by_id = {_required_int(row, "pokemon_id"): row for row in rows}
+        assignments = resolve_pose_samples(splits_path, split=split, pokemon_ids=list(rows_by_id))
         split_dir = ensure_directory(cache_root / split)
-        index = 0
-        for row in tqdm(rows, desc=f"render_cache[{split}]", unit="pokemon"):
+        cached_pokemon_id: int | None = None
+        vertices = None
+        faces = None
+        for index, assignment in enumerate(tqdm(assignments, desc=f"render_cache[{split}]", unit="sample")):
+            row = rows_by_id[assignment.pokemon_id]
             mesh_cache_path = _mesh_cache_path(row, mesh_cache_root)
-            cached = torch.load(mesh_cache_path, map_location="cpu", weights_only=False)
-            vertices = cached["vertices"].numpy()
-            faces = cached["faces"].numpy()
-            for condition in conditions:
-                yaw_offset = _required_float(condition, "yaw_offset")
-                elevation_offset = _required_float(condition, "elevation_offset")
-                for view_index, (base_azimuth, base_elevation) in enumerate(zip(azimuths, elevations, strict=True)):
-                    image = render_silhouette(
-                        vertices,
-                        faces,
-                        base_azimuth + yaw_offset,
-                        base_elevation + elevation_offset,
-                        resolution=config.rendering.image_size,
-                        supersample=config.rendering.supersample,
-                        line_width=config.rendering.line_width,
-                    )
-                    Image.fromarray(image).save(split_dir / f"{index:06d}_v{view_index}.png")
-                index += 1
+            if cached_pokemon_id != assignment.pokemon_id:
+                cached = torch.load(mesh_cache_path, map_location="cpu", weights_only=False)
+                vertices = cached["vertices"].numpy()
+                faces = cached["faces"].numpy()
+                cached_pokemon_id = assignment.pokemon_id
+            assert vertices is not None and faces is not None
+            for view_index, (base_azimuth, base_elevation) in enumerate(zip(azimuths, elevations, strict=True)):
+                image = render_silhouette(
+                    vertices,
+                    faces,
+                    base_azimuth + assignment.yaw_offset,
+                    base_elevation + assignment.elevation_offset,
+                    resolution=config.rendering.image_size,
+                    supersample=config.rendering.supersample,
+                    line_width=config.rendering.line_width,
+                )
+                Image.fromarray(image).save(split_dir / f"{index:06d}_v{view_index}.png")
 
     return cache_root
 

@@ -22,6 +22,7 @@ specified.
 - Macro-F1: the unweighted mean of per-class F1 scores.
 - Per-class metrics: class-level precision, recall, and F1.
 - Confusion matrix: pairwise class confusions.
+- Per-pose metrics: sample count, Top-1, and Top-5 for each yaw/elevation condition in `pose_metrics.csv`.
 
 Macro-F1 is important because the catalog has many classes and a high aggregate accuracy can hide weak
 performance on a subset of classes.
@@ -32,7 +33,8 @@ Compare conditions in this order:
 
 1. Single-view vs. Fixed Ring-4: estimates the value of using multiple views.
 2. Fixed Ring-4 vs. Learned Circular-4 MVTN: estimates the additional value of learned camera placement.
-3. Per-class and confusion-matrix changes: identifies which shapes benefit or regress.
+3. Fixed Ring-4 vs. View Transformer-4: estimates the value of attention-based view aggregation.
+4. Per-class and confusion-matrix changes: identifies which shapes benefit or regress.
 
 For the MVTN condition, do not rely only on classification metrics. Inspect:
 

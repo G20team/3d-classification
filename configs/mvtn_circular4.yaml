@@ -4,9 +4,10 @@ experiment:
   seed: 0
 
 data:
+  input_source: mesh
   manifest_path: data/manifests/selected_regular.jsonl
   mesh_cache_root: data/mesh_cache
-  splits_path: data/manifests/pose_splits.json
+  splits_path: data/manifests/pose_splits_stratified_seed0.json
   image_size: 224
   num_workers: 0
 

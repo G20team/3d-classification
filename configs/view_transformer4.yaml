@@ -1,6 +1,6 @@
 experiment:
-  condition_id: fixed_ring4
-  condition_name: Fixed Ring-4 MVCNN
+  condition_id: view_transformer4
+  condition_name: View Transformer-4
   seed: 0
 
 data:
@@ -13,12 +13,17 @@ data:
   num_workers: 4
 
 model:
-  experiment_kind: fixed_ring4
+  experiment_kind: view_transformer4
   backbone: resnet18
   pretrained: true
   feature_dim: 512
   dropout: 0.3
   num_views: 4
+  transformer:
+    num_layers: 2
+    num_heads: 8
+    mlp_dim: 2048
+    dropout: 0.1
 
 rendering:
   image_size: 224

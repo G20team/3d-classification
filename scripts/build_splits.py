@@ -19,7 +19,10 @@ def main() -> None:
     project_root = find_project_root(Path(args.config).resolve().parent)
     config = load_split_config(args.config)
     output_path = resolve_project_path(config.output_path, project_root)
-    splits = save_pose_splits(config, output_path)
+    manifest_path = (
+        resolve_project_path(config.manifest_path, project_root) if config.manifest_path is not None else None
+    )
+    splits = save_pose_splits(config, output_path, manifest_path=manifest_path)
     print(f"pose splits saved: {output_path} ({', '.join(splits)})")
 
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+from collections import defaultdict
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -54,6 +56,57 @@ def compute_classification_metrics(
         "per_class": report,
         "confusion_matrix": confusion_matrix(labels, predictions, labels=class_indices).tolist(),
     }
+
+
+def compute_pose_metrics(
+    *,
+    labels: list[int],
+    probabilities: np.ndarray,
+    pose_offsets: list[tuple[float, float]],
+) -> list[dict[str, float | int]]:
+    """Return sample count and Top-k accuracy for every yaw/elevation condition."""
+
+    if len(labels) != len(pose_offsets) or probabilities.shape[0] != len(labels):
+        msg = "labels, probabilities, and pose_offsets must have the same sample count."
+        raise ValueError(msg)
+    grouped_indices: dict[tuple[float, float], list[int]] = defaultdict(list)
+    for index, pose in enumerate(pose_offsets):
+        grouped_indices[pose].append(index)
+
+    rows: list[dict[str, float | int]] = []
+    for (yaw_offset, elevation_offset), indices in sorted(grouped_indices.items()):
+        group_probabilities = probabilities[indices]
+        group_labels = np.asarray([labels[index] for index in indices])
+        predictions = group_probabilities.argmax(axis=1)
+        top_k = min(5, group_probabilities.shape[1])
+        top5 = np.mean(
+            [
+                label in np.argsort(row)[-top_k:]
+                for label, row in zip(group_labels, group_probabilities, strict=True)
+            ]
+        )
+        rows.append(
+            {
+                "yaw_offset": yaw_offset,
+                "elevation_offset": elevation_offset,
+                "sample_count": len(indices),
+                "top1_accuracy": float((predictions == group_labels).mean()),
+                "top5_accuracy": float(top5),
+            }
+        )
+    return rows
+
+
+def save_pose_metrics_csv(rows: list[dict[str, object]], output_path: Path) -> None:
+    """Save per-pose evaluation metrics as CSV."""
+
+    with output_path.open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(
+            file,
+            fieldnames=["yaw_offset", "elevation_offset", "sample_count", "top1_accuracy", "top5_accuracy"],
+        )
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def save_confusion_matrix_png(matrix: list[list[int]], class_names: list[str], output_path: Path) -> None:

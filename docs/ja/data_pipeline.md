@@ -126,33 +126,51 @@ uv run python scripts/inspect_mesh_cache.py \
 
 ## 5. 姿勢Split作成
 
-この実験ではポケモンIDではなく、姿勢条件でtrain/validation/testを分けます。
-すべてのポケモンIDは全splitに含まれ、未知ポケモンではなく未知姿勢への一般化を評価します。
+標準実験では「ポケモンID×姿勢条件」を単位にsplitを作ります。すべてのポケモンIDと17種類の姿勢条件を
+各splitへ含め、角度分布の差によってvalidation/testだけが難しくならないようにします。同じID・同じ姿勢の
+サンプルが複数splitへ入ることはありません。
 
 ```bash
-uv run python scripts/build_splits.py --config configs/splits.yaml
-uv run python scripts/validate_splits.py --config configs/splits.yaml
+uv run python scripts/build_splits.py --config configs/splits_stratified.yaml
+uv run python scripts/validate_splits.py --splits data/manifests/pose_splits_stratified_seed0.json
 ```
 
-`configs/splits.yaml` の既定値:
+各ポケモンについて17姿勢を次の件数で割り当てます。
 
 ```text
-train:      yaw = [-20, 0, 20], elevation = [-10, 0, 10]
-validation: yaw = [-30, 30],    elevation = [-15, 15]
-test:       yaw = [-45, 45],    elevation = [-25, 25]
+train: 9、validation: 4、test: 4
 ```
 
 主な出力:
 
 ```text
-data/manifests/pose_splits.json
+data/manifests/pose_splits_stratified_seed0.json
 ```
 
 確認する項目:
 
 - `validate_splits.py` が成功する。
-- train/validation/testでyaw/elevation条件が重複していない。
-- 本実験前にsplitを変更した場合、全条件で同じ `pose_splits.json` を使う。
+- 各ポケモンがtrain/validation/testに9/4/4件ずつ含まれる。
+- 各splitが17姿勢をすべて含み、姿勢ごとの件数差が2件以内である。
+- source manifestのSHA-256が一致し、同じサンプル割当がsplit間で重複しない。
+- 全比較条件で同じ `pose_splits_stratified_seed0.json` を使う。
+
+旧来の姿勢条件を完全に分離した `configs/splits.yaml` と `pose_splits.json` は、過去checkpointの再現用として残します。
+
+## 6. 固定視点RGB Render Cache
+
+Single-view、Fixed Ring-4、View Transformerでは、PyTorch3Dの固定視点RGB画像を一度だけ生成し、
+30 epochで再利用します。PNGはsampleごとに全viewを横連結し、元manifest、split、描画設定、
+カメラ角度のSHA-256から決まるディレクトリへ保存されます。
+
+```bash
+uv run python scripts/prepare_rgb_render_cache.py --config configs/single_view.yaml
+uv run python scripts/prepare_rgb_render_cache.py --config configs/fixed_ring4.yaml
+```
+
+Fixed Ring-4とView Transformerは同じ固定4視点なので、2つ目のキャッシュを共有します。
+MVTNは学習中にカメラ角度が変わり、rendererを通じた勾配が必要なため、このキャッシュを使用しません。
+標準configでキャッシュが未生成の場合、学習開始時に生成コマンドを含むエラーが表示されます。
 
 ## 次の段階
 
