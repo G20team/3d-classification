@@ -7,10 +7,10 @@
 
 1. [環境セットアップ](setup.md)
 2. [データ準備](data_pipeline.md)
-3. [debug subsetで3条件を確認](experiments/index.md#debug-subset)
+3. [debug subsetで4条件を確認](experiments/index.md#debug-subset)
 4. [本実験を実行](experiments/index.md#本実験)
 5. [checkpointをtest splitで評価](evaluation.md)
-6. [3条件を比較して結果を解釈](evaluation.md#条件間比較)
+6. [4条件を比較して結果を解釈](evaluation.md#条件間比較)
 
 ## 実験の位置づけ
 
@@ -18,11 +18,12 @@
 学習時に登場した既知カタログ内のポケモンについて、見たことのない姿勢・角度からレンダリングされた画像を
 正しく識別できるかを調べます。このタスクを **closed-set cross-orientation asset identification** と呼びます。
 
-比較する条件は以下の3つです。
+比較する条件は以下の4つです。
 
 - [Single-view](experiments/single_view.md): 1つの固定視点だけから識別する基準条件。
 - [Fixed Ring-4 MVCNN](experiments/fixed_ring4.md): 円環状に固定した4視点を使うMVCNN条件。
 - [Learned Circular-4 MVTN](experiments/mvtn_circular4.md): mesh形状から4視点の角度補正を学習する条件。
+- [View Transformer-4](experiments/view_transformer4.md): 固定4視点をattentionで統合する条件。
 
 ## 推奨コマンド列
 
@@ -48,8 +49,8 @@ uv run python scripts/render_contact_sheet.py \
 uv run python scripts/prepare_mesh_cache.py \
   --manifest data/manifests/selected_regular.jsonl \
   --output-root data/mesh_cache
-uv run python scripts/build_splits.py --config configs/splits.yaml
-uv run python scripts/validate_splits.py --config configs/splits.yaml
+uv run python scripts/build_splits.py --config configs/splits_stratified.yaml
+uv run python scripts/validate_splits.py --splits data/manifests/pose_splits_stratified_seed0.json
 ```
 
 debug subset:
@@ -58,14 +59,22 @@ debug subset:
 uv run python scripts/train.py --config configs/debug_single_view.yaml
 uv run python scripts/train.py --config configs/debug_fixed_ring4.yaml
 uv run python scripts/train.py --config configs/debug_mvtn_circular4.yaml
+uv run python scripts/train.py --config configs/debug_view_transformer4.yaml
 ```
 
 本実験:
 
 ```bash
+# 固定視点条件で共有するPyTorch3D RGBキャッシュを先に生成
+uv run python scripts/prepare_rgb_render_cache.py --config configs/single_view.yaml
+uv run python scripts/prepare_rgb_render_cache.py --config configs/fixed_ring4.yaml
+
 uv run python scripts/train.py --config configs/single_view.yaml
 uv run python scripts/train.py --config configs/fixed_ring4.yaml
+# MVTNは学習可能なカメラへの勾配が必要なためオンライン描画を継続
 uv run python scripts/train.py --config configs/mvtn_circular4.yaml
+# Fixed Ring-4と同じ4-view RGBキャッシュを再利用
+uv run python scripts/train.py --config configs/view_transformer4.yaml
 ```
 
 評価:

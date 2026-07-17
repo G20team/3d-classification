@@ -1,23 +1,28 @@
 experiment:
-  condition_id: debug_fixed_ring4
-  condition_name: Debug Fixed Ring-4
+  condition_id: debug_view_transformer4
+  condition_name: Debug View Transformer-4
   seed: 0
 
 data:
   manifest_path: data/manifests/selected_regular.jsonl
   mesh_cache_root: data/mesh_cache
-  splits_path: data/manifests/pose_splits.json
+  splits_path: data/manifests/pose_splits_stratified_seed0.json
   class_limit: 10
   image_size: 128
   num_workers: 0
 
 model:
-  experiment_kind: fixed_ring4
+  experiment_kind: view_transformer4
   backbone: resnet18
   pretrained: true
   feature_dim: 512
   dropout: 0.3
   num_views: 4
+  transformer:
+    num_layers: 2
+    num_heads: 8
+    mlp_dim: 2048
+    dropout: 0.1
 
 rendering:
   image_size: 128
@@ -33,4 +38,4 @@ training:
   device: auto
 
 output:
-  runs_root: outputs
+  runs_root: outputs/debug

@@ -1,37 +1,43 @@
 experiment:
-  condition_id: fixed_ring4
-  condition_name: Fixed Ring-4 MVCNN
+  condition_id: debug_mvtn_circular4
+  condition_name: Debug Learned Circular-4 MVTN
   seed: 0
 
 data:
-  input_source: rgb_cache
   manifest_path: data/manifests/selected_regular.jsonl
   mesh_cache_root: data/mesh_cache
   splits_path: data/manifests/pose_splits_stratified_seed0.json
-  render_cache_root: data/render_cache
-  image_size: 224
-  num_workers: 4
+  class_limit: 10
+  image_size: 128
+  num_workers: 0
 
 model:
-  experiment_kind: fixed_ring4
+  experiment_kind: mvtn_circular4
   backbone: resnet18
   pretrained: true
   feature_dim: 512
   dropout: 0.3
   num_views: 4
+  mvtn:
+    num_views: 4
+    max_azimuth_offset_deg: 45.0
+    max_elevation_offset_deg: 25.0
+    point_samples: 256
+    hidden_dim: 128
+    collapse_threshold_deg: 5.0
 
 rendering:
-  image_size: 224
+  image_size: 128
   camera_distance: 2.7
   background_color: [0.5, 0.5, 0.5]
   mesh_color: [1.0, 1.0, 1.0]
 
 training:
-  batch_size: 4
-  epochs: 30
+  batch_size: 2
+  epochs: 3
   learning_rate: 0.0001
   weight_decay: 0.01
   device: auto
 
 output:
-  runs_root: outputs
+  runs_root: outputs/debug

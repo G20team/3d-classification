@@ -6,7 +6,7 @@ from typing import Literal
 
 import torch
 
-ExperimentKind = Literal["single_view", "fixed_ring4", "mvtn_circular4"]
+ExperimentKind = Literal["single_view", "fixed_ring4", "mvtn_circular4", "view_transformer4"]
 
 
 def fixed_camera_angles(
@@ -20,7 +20,7 @@ def fixed_camera_angles(
         azimuths = torch.tensor([0.0], dtype=torch.float32, device=device)
         elevations = torch.tensor([0.0], dtype=torch.float32, device=device)
         return azimuths, elevations
-    if experiment_kind in {"fixed_ring4", "mvtn_circular4"}:
+    if experiment_kind in {"fixed_ring4", "mvtn_circular4", "view_transformer4"}:
         azimuths = torch.tensor([0.0, 90.0, 180.0, 270.0], dtype=torch.float32, device=device)
         elevations = torch.zeros(4, dtype=torch.float32, device=device)
         return azimuths, elevations

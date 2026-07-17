@@ -7,7 +7,7 @@ data:
   input_source: silhouette_cache
   manifest_path: data/manifests/selected_regular.jsonl
   mesh_cache_root: data/mesh_cache
-  splits_path: data/manifests/pose_splits.json
+  splits_path: data/manifests/pose_splits_stratified_seed0.json
   class_limit: 100
   render_cache_root: data/render_cache
   num_workers: 0

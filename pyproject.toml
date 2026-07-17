@@ -36,6 +36,7 @@ exclude = [
     ".venv",
     ".uv-cache",
     ".ruff_cache",
+    "ppt-master",
 ]
 line-length = 120
 indent-width = 4
@@ -62,6 +63,7 @@ exclude = [
     "**/node_modules/**",
     "**/.*",
     ".venv",
+    "ppt-master",
 ]
 
 [tool.pytest.ini_options]

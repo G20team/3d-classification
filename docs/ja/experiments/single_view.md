@@ -70,7 +70,7 @@ outputs/single_view/<timestamp>_seed0/eval_test/
 
 - `metrics.json` のvalidation macro-F1とtest macro-F1が極端に乖離していない。
 - `confusion_matrix.png` で、似たシルエットのポケモンが混同されているか確認する。
-- Single-viewだけ低い場合、未知姿勢に対して1視点では情報が足りない可能性がある。
+- Single-viewだけ低い場合、角度分布を揃えても1視点では情報が足りない可能性がある。
 - Single-viewがFixed Ring-4に近い場合、対象クラスが単視点でも十分識別可能か、4視点の配置やレンダリングに問題がないか確認する。
 
 ## 比較での使い方

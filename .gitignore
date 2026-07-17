@@ -10,6 +10,7 @@ runs/
 data/
 dataset/
 illustrations/
+ppt-master/
 /models/
 
 # Local agent instructions and connector state

@@ -5,8 +5,8 @@ offsets from mesh geometry.
 
 ## Purpose
 
-This condition tests whether Pokemon-dependent view placement improves identification under unseen pose
-conditions compared with the fixed four-view baseline.
+This condition tests whether Pokemon-dependent view placement improves identification under the shared,
+pose-balanced split compared with the fixed four-view baseline.
 
 The classifier side should remain aligned with Fixed Ring-4 MVCNN so the main difference is the camera
 policy.

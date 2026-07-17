@@ -1,0 +1,17 @@
+output_path: data/manifests/pose_splits_stratified_seed0.json
+strategy: stratified_samples
+manifest_path: data/manifests/selected_regular.jsonl
+seed: 0
+
+split_counts:
+  train: 9
+  validation: 4
+  test: 4
+
+pose_groups:
+  - yaw_offsets: [-20, 0, 20]
+    elevation_offsets: [-10, 0, 10]
+  - yaw_offsets: [-30, 30]
+    elevation_offsets: [-15, 15]
+  - yaw_offsets: [-45, 45]
+    elevation_offsets: [-25, 25]
